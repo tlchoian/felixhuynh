@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   ClipboardList,
@@ -6,37 +6,48 @@ import {
   User,
   Flag,
   MoreVertical,
-  GripVertical,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Task {
-  id: number;
+  id: string;
   title: string;
-  priority: "High" | "Medium" | "Low";
+  description: string | null;
+  priority: string;
   requester: string;
-  dueDate: string;
-  status: "todo" | "in_progress" | "pending_vendor" | "done";
+  due_date: string | null;
+  status: string;
 }
-
-const mockTasks: Task[] = [
-  { id: 1, title: "Fix email server timeout", priority: "High", requester: "John Smith", dueDate: "2024-12-26", status: "todo" },
-  { id: 2, title: "Setup new workstation - HR", priority: "Medium", requester: "Sarah Johnson", dueDate: "2024-12-28", status: "todo" },
-  { id: 3, title: "Update firewall rules", priority: "High", requester: "IT Security", dueDate: "2024-12-25", status: "in_progress" },
-  { id: 4, title: "Install Windows updates", priority: "Low", requester: "All Departments", dueDate: "2024-12-30", status: "in_progress" },
-  { id: 5, title: "Waiting for new router delivery", priority: "Medium", requester: "Branch B", dueDate: "2025-01-05", status: "pending_vendor" },
-  { id: 6, title: "SSL Certificate installation", priority: "High", requester: "Web Team", dueDate: "2025-01-02", status: "pending_vendor" },
-  { id: 7, title: "Setup VPN for remote staff", priority: "Medium", requester: "HR", dueDate: "2024-12-24", status: "done" },
-  { id: 8, title: "Migrate database to new server", priority: "High", requester: "Dev Team", dueDate: "2024-12-23", status: "done" },
-  { id: 9, title: "Network cable replacement - Floor 2", priority: "Low", requester: "Facilities", dueDate: "2024-12-29", status: "todo" },
-  { id: 10, title: "Printer driver update", priority: "Low", requester: "Finance", dueDate: "2024-12-27", status: "done" },
-];
 
 const columns = [
   { id: "todo", title: "To Do", color: "border-muted-foreground" },
@@ -45,23 +56,38 @@ const columns = [
   { id: "done", title: "Done", color: "border-success" },
 ];
 
-const priorityColors = {
+const priorityColors: Record<string, string> = {
   High: "bg-destructive/20 text-destructive border-destructive/30",
   Medium: "bg-warning/20 text-warning border-warning/30",
   Low: "bg-muted text-muted-foreground border-muted-foreground/30",
 };
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({ task, onStatusChange, onDelete }: { 
+  task: Task; 
+  onStatusChange: (id: string, status: string) => void;
+  onDelete: (id: string) => void;
+}) {
   return (
-    <div className="glass-card p-4 cursor-grab hover:border-primary/50 transition-colors group">
+    <div className="glass-card p-4 hover:border-primary/50 transition-colors group">
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
-        </div>
         <span className={`status-badge text-xs ${priorityColors[task.priority]}`}>
           <Flag className="w-3 h-3 mr-1 inline" />
           {task.priority}
         </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-popover border-border">
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "todo")}>Move to To Do</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "in_progress")}>Move to In Progress</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "pending_vendor")}>Move to Pending Vendor</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "done")}>Move to Done</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={() => onDelete(task.id)}>Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
       <h3 className="font-medium text-foreground mb-3 line-clamp-2">{task.title}</h3>
@@ -71,34 +97,123 @@ function TaskCard({ task }: { task: Task }) {
           <User className="w-3 h-3" />
           <span>{task.requester}</span>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Calendar className="w-3 h-3" />
-          <span>{task.dueDate}</span>
-        </div>
-      </div>
-
-      <div className="flex justify-end mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-popover border-border">
-            <DropdownMenuItem>Edit Task</DropdownMenuItem>
-            <DropdownMenuItem>Change Priority</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {task.due_date && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Calendar className="w-3 h-3" />
+            <span>{task.due_date}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function TaskTracker() {
-  const [tasks] = useState<Task[]>(mockTasks);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    priority: "Medium",
+    requester: "",
+    due_date: "",
+    status: "todo",
+  });
+
+  const fetchTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setTasks(data || []);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      toast.error("Failed to load tasks");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.requester) {
+      toast.error("Please fill in required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("tasks").insert({
+        user_id: user?.id,
+        title: formData.title,
+        description: formData.description || null,
+        priority: formData.priority,
+        requester: formData.requester,
+        due_date: formData.due_date || null,
+        status: formData.status,
+      });
+
+      if (error) throw error;
+
+      toast.success("Task created successfully");
+      setIsAddModalOpen(false);
+      setFormData({ title: "", description: "", priority: "Medium", requester: "", due_date: "", status: "todo" });
+      fetchTasks();
+    } catch (error) {
+      console.error("Error creating task:", error);
+      toast.error("Failed to create task");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Task updated");
+      fetchTasks();
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Task deleted");
+      fetchTasks();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task");
+    }
+  };
 
   const getTasksByStatus = (status: string) => tasks.filter((t) => t.status === status);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -111,10 +226,96 @@ export default function TaskTracker() {
           </h1>
           <p className="text-muted-foreground mt-1">IT Helpdesk Kanban Board</p>
         </div>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          New Task
-        </Button>
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="w-4 h-4 mr-2" />
+              New Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Create New Task</DialogTitle>
+              <DialogDescription>Add a new task to your helpdesk board.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Title *</Label>
+                <Input
+                  placeholder="e.g., Fix email server timeout"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Description</Label>
+                <Textarea
+                  placeholder="Additional details..."
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field min-h-[80px]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Priority</Label>
+                  <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="todo">To Do</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="pending_vendor">Pending Vendor</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>Requester *</Label>
+                  <Input
+                    placeholder="John Smith"
+                    value={formData.requester}
+                    onChange={(e) => setFormData({ ...formData, requester: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Due Date</Label>
+                  <Input
+                    type="date"
+                    value={formData.due_date}
+                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Create Task
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats */}
@@ -149,7 +350,12 @@ export default function TaskTracker() {
             </div>
             <div className="kanban-column space-y-3">
               {getTasksByStatus(column.id).map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onStatusChange={handleStatusChange}
+                  onDelete={handleDelete}
+                />
               ))}
               {getTasksByStatus(column.id).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground text-sm">

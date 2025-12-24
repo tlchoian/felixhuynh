@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   Search,
@@ -9,6 +9,8 @@ import {
   Camera,
   Monitor,
   Filter,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,32 +29,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NetworkDevice {
-  id: number;
-  deviceName: string;
-  ipAddress: string;
-  type: "Router" | "Switch" | "AP" | "Server" | "Camera" | "Workstation";
-  macAddress: string;
+  id: string;
+  device_name: string;
+  ip_address: string;
+  type: string;
+  mac_address: string | null;
   location: string;
-  vlanId: number;
-  status: "Online" | "Offline" | "Maintenance";
+  vlan_id: number | null;
+  status: string;
 }
 
-const mockDevices: NetworkDevice[] = [
-  { id: 1, deviceName: "Core-Router-01", ipAddress: "192.168.1.1", type: "Router", macAddress: "00:1A:2B:3C:4D:5E", location: "Branch A - Server Room", vlanId: 1, status: "Online" },
-  { id: 2, deviceName: "SW-Floor1-01", ipAddress: "192.168.1.10", type: "Switch", macAddress: "00:1A:2B:3C:4D:5F", location: "Branch A - Floor 1", vlanId: 10, status: "Online" },
-  { id: 3, deviceName: "AP-Lobby-01", ipAddress: "192.168.1.50", type: "AP", macAddress: "00:1A:2B:3C:4D:60", location: "Branch A - Lobby", vlanId: 20, status: "Online" },
-  { id: 4, deviceName: "SRV-WEB-01", ipAddress: "192.168.1.100", type: "Server", macAddress: "00:1A:2B:3C:4D:61", location: "Branch A - Server Room", vlanId: 100, status: "Online" },
-  { id: 5, deviceName: "CAM-Entrance-01", ipAddress: "192.168.1.200", type: "Camera", macAddress: "00:1A:2B:3C:4D:62", location: "Branch A - Entrance", vlanId: 50, status: "Online" },
-  { id: 6, deviceName: "Core-Router-02", ipAddress: "192.168.2.1", type: "Router", macAddress: "00:1B:2C:3D:4E:5F", location: "Branch B - Server Room", vlanId: 1, status: "Maintenance" },
-  { id: 7, deviceName: "SW-Floor2-01", ipAddress: "192.168.2.10", type: "Switch", macAddress: "00:1B:2C:3D:4E:60", location: "Branch B - Floor 2", vlanId: 10, status: "Offline" },
-  { id: 8, deviceName: "AP-Office-01", ipAddress: "192.168.2.50", type: "AP", macAddress: "00:1B:2C:3D:4E:61", location: "Branch B - Office", vlanId: 20, status: "Online" },
-  { id: 9, deviceName: "SRV-DB-01", ipAddress: "192.168.1.101", type: "Server", macAddress: "00:1A:2B:3C:4D:63", location: "Branch A - Server Room", vlanId: 100, status: "Online" },
-  { id: 10, deviceName: "WS-Reception", ipAddress: "192.168.1.150", type: "Workstation", macAddress: "00:1A:2B:3C:4D:64", location: "Branch A - Reception", vlanId: 30, status: "Online" },
-];
-
-const deviceIcons = {
+const deviceIcons: Record<string, any> = {
   Router: Router,
   Switch: Network,
   AP: Wifi,
@@ -61,7 +63,7 @@ const deviceIcons = {
   Workstation: Monitor,
 };
 
-const deviceColors = {
+const deviceColors: Record<string, string> = {
   Router: "bg-red-500/20 text-red-400 border-red-500/30",
   Switch: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   AP: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -70,31 +72,120 @@ const deviceColors = {
   Workstation: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
 };
 
-const statusStyles = {
+const statusStyles: Record<string, string> = {
   Online: "bg-success/20 text-success border-success/30",
   Offline: "bg-destructive/20 text-destructive border-destructive/30",
   Maintenance: "bg-warning/20 text-warning border-warning/30",
 };
 
 export default function NetworkIPAM() {
-  const [devices] = useState<NetworkDevice[]>(mockDevices);
+  const { user } = useAuth();
+  const [devices, setDevices] = useState<NetworkDevice[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [formData, setFormData] = useState({
+    device_name: "",
+    ip_address: "",
+    type: "Workstation",
+    mac_address: "",
+    location: "",
+    vlan_id: "1",
+    status: "Online",
+  });
+
+  const fetchDevices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("network_devices")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setDevices(data || []);
+    } catch (error) {
+      console.error("Error fetching devices:", error);
+      toast.error("Failed to load devices");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDevices();
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!formData.device_name || !formData.ip_address || !formData.location) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from("network_devices").insert({
+        user_id: user?.id,
+        device_name: formData.device_name,
+        ip_address: formData.ip_address,
+        type: formData.type,
+        mac_address: formData.mac_address || null,
+        location: formData.location,
+        vlan_id: parseInt(formData.vlan_id) || 1,
+        status: formData.status,
+      });
+
+      if (error) throw error;
+
+      toast.success("Device added successfully");
+      setIsAddModalOpen(false);
+      setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location: "", vlan_id: "1", status: "Online" });
+      fetchDevices();
+    } catch (error) {
+      console.error("Error adding device:", error);
+      toast.error("Failed to add device");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("network_devices").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Device deleted");
+      fetchDevices();
+    } catch (error) {
+      console.error("Error deleting device:", error);
+      toast.error("Failed to delete device");
+    }
+  };
+
+  const locations = [...new Set(devices.map((d) => d.location))];
 
   const filteredDevices = devices
     .filter(
       (device) =>
-        device.deviceName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        device.ipAddress.includes(searchQuery) ||
-        device.macAddress.toLowerCase().includes(searchQuery.toLowerCase())
+        device.device_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        device.ip_address.includes(searchQuery) ||
+        (device.mac_address && device.mac_address.toLowerCase().includes(searchQuery.toLowerCase()))
     )
-    .filter((device) => locationFilter === "all" || device.location.includes(locationFilter))
+    .filter((device) => locationFilter === "all" || device.location === locationFilter)
     .filter((device) => typeFilter === "all" || device.type === typeFilter);
 
   const onlineCount = devices.filter((d) => d.status === "Online").length;
   const offlineCount = devices.filter((d) => d.status === "Offline").length;
-  const locations = [...new Set(devices.map((d) => d.location.split(" - ")[0]))];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -107,10 +198,108 @@ export default function NetworkIPAM() {
           </h1>
           <p className="text-muted-foreground mt-1">IP Address Management across all branches</p>
         </div>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Device
-        </Button>
+        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Device
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Add Network Device</DialogTitle>
+              <DialogDescription>Register a new device in your network.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>Device Name *</Label>
+                <Input
+                  placeholder="e.g., SW-Floor1-01"
+                  value={formData.device_name}
+                  onChange={(e) => setFormData({ ...formData, device_name: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>IP Address *</Label>
+                  <Input
+                    placeholder="192.168.1.1"
+                    value={formData.ip_address}
+                    onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Type</Label>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="Router">Router</SelectItem>
+                      <SelectItem value="Switch">Switch</SelectItem>
+                      <SelectItem value="AP">Access Point</SelectItem>
+                      <SelectItem value="Server">Server</SelectItem>
+                      <SelectItem value="Camera">Camera</SelectItem>
+                      <SelectItem value="Workstation">Workstation</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>MAC Address</Label>
+                <Input
+                  placeholder="00:1A:2B:3C:4D:5E"
+                  value={formData.mac_address}
+                  onChange={(e) => setFormData({ ...formData, mac_address: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Location *</Label>
+                <Input
+                  placeholder="Branch A - Server Room"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>VLAN ID</Label>
+                  <Input
+                    type="number"
+                    placeholder="1"
+                    value={formData.vlan_id}
+                    onChange={(e) => setFormData({ ...formData, vlan_id: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="Online">Online</SelectItem>
+                      <SelectItem value="Offline">Offline</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Add Device
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats */}
@@ -155,7 +344,7 @@ export default function NetworkIPAM() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{locations.length}</p>
-              <p className="text-xs text-muted-foreground">Branches</p>
+              <p className="text-xs text-muted-foreground">Locations</p>
             </div>
           </div>
         </div>
@@ -204,55 +393,80 @@ export default function NetworkIPAM() {
 
       {/* Devices Table */}
       <div className="glass-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-border/50 hover:bg-transparent">
-              <TableHead className="text-muted-foreground">Device Name</TableHead>
-              <TableHead className="text-muted-foreground">IP Address</TableHead>
-              <TableHead className="text-muted-foreground">Type</TableHead>
-              <TableHead className="text-muted-foreground">MAC Address</TableHead>
-              <TableHead className="text-muted-foreground">Location</TableHead>
-              <TableHead className="text-muted-foreground">VLAN</TableHead>
-              <TableHead className="text-muted-foreground">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredDevices.map((device) => {
-              const DeviceIcon = deviceIcons[device.type];
-              return (
-                <TableRow key={device.id} className="table-row">
-                  <TableCell className="font-medium text-foreground">
-                    <div className="flex items-center gap-2">
-                      <DeviceIcon className="w-4 h-4 text-muted-foreground" />
-                      {device.deviceName}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-primary">{device.ipAddress}</TableCell>
-                  <TableCell>
-                    <span className={`status-badge ${deviceColors[device.type]}`}>
-                      {device.type}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground uppercase">{device.macAddress}</TableCell>
-                  <TableCell className="text-muted-foreground">{device.location}</TableCell>
-                  <TableCell className="font-mono text-sm text-foreground">{device.vlanId}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        device.status === "Online" ? "bg-success animate-pulse" :
-                        device.status === "Offline" ? "bg-destructive" :
-                        "bg-warning"
-                      }`} />
-                      <span className={`status-badge ${statusStyles[device.status]}`}>
-                        {device.status}
+        {filteredDevices.length === 0 ? (
+          <div className="p-12 text-center">
+            <Network className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No devices yet</h3>
+            <p className="text-sm text-muted-foreground mb-4">Add your first network device to start tracking</p>
+            <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Device
+            </Button>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/50 hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Device Name</TableHead>
+                <TableHead className="text-muted-foreground">IP Address</TableHead>
+                <TableHead className="text-muted-foreground">Type</TableHead>
+                <TableHead className="text-muted-foreground">MAC Address</TableHead>
+                <TableHead className="text-muted-foreground">Location</TableHead>
+                <TableHead className="text-muted-foreground">VLAN</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
+                <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredDevices.map((device) => {
+                const DeviceIcon = deviceIcons[device.type] || Monitor;
+                return (
+                  <TableRow key={device.id} className="table-row">
+                    <TableCell className="font-medium text-foreground">
+                      <div className="flex items-center gap-2">
+                        <DeviceIcon className="w-4 h-4 text-muted-foreground" />
+                        {device.device_name}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm text-primary">{device.ip_address}</TableCell>
+                    <TableCell>
+                      <span className={`status-badge ${deviceColors[device.type] || ""}`}>
+                        {device.type}
                       </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm text-muted-foreground uppercase">
+                      {device.mac_address || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{device.location}</TableCell>
+                    <TableCell className="font-mono text-sm text-foreground">{device.vlan_id}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          device.status === "Online" ? "bg-success animate-pulse" :
+                          device.status === "Offline" ? "bg-destructive" :
+                          "bg-warning"
+                        }`} />
+                        <span className={`status-badge ${statusStyles[device.status] || ""}`}>
+                          {device.status}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(device.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );
