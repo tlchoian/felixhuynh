@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Mail, Lock, User, ArrowRight, Loader2, Globe } from "lucide-react";
+import { Server, Mail, Lock, User, ArrowRight, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { z } from "zod";
+import { ParticleNetwork } from "@/components/ParticleNetwork";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -100,37 +101,44 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Particle Network Background */}
+      <ParticleNetwork />
+      
+      {/* Gradient Overlay */}
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10 pointer-events-none" />
+
       {/* Language Toggle */}
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 z-10">
         <Button
           variant="ghost"
           size="sm"
           onClick={toggleLanguage}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground backdrop-blur-sm bg-background/20"
         >
           <Globe className="w-4 h-4 mr-2" />
           {language === "vi" ? "🇻🇳 VI" : "🇬🇧 EN"}
         </Button>
       </div>
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4 glow-primary">
-            <Shield className="w-8 h-8 text-primary" />
+          <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-primary/30 shadow-lg shadow-primary/20">
+            <Server className="w-10 h-10 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">{t("app_name")}</h1>
           <p className="text-muted-foreground">{t("app_subtitle")}</p>
         </div>
 
-        {/* Auth Card */}
-        <div className="glass-card p-8">
-          <h2 className="text-xl font-semibold text-foreground mb-6">
+        {/* Auth Card - Enhanced Glassmorphism */}
+        <div className="relative p-8 rounded-2xl border border-border/50 bg-background/60 backdrop-blur-xl shadow-2xl shadow-primary/10">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+          <h2 className="relative text-xl font-semibold text-foreground mb-6">
             {isLogin ? t("auth_sign_in_title") : t("auth_sign_up_title")}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="relative space-y-4">
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="fullName">{t("auth_full_name")}</Label>
@@ -204,7 +212,7 @@ export default function Auth() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="relative mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               {isLogin ? t("auth_no_account") : t("auth_have_account")}{" "}
               <button
