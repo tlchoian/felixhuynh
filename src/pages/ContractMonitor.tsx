@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Loader2,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,8 @@ export default function ContractMonitor() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -145,6 +148,55 @@ export default function ContractMonitor() {
     } catch (error) {
       console.error("Error adding contract:", error);
       toast.error("Failed to add contract");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEdit = (contract: Contract) => {
+    setEditingContract(contract);
+    setFormData({
+      asset_name: contract.asset_name,
+      type: contract.type,
+      provider: contract.provider,
+      expiry_date: contract.expiry_date,
+      cost: contract.cost.toString(),
+      billing_cycle: contract.billing_cycle,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingContract || !formData.asset_name || !formData.provider || !formData.expiry_date) {
+      toast.error(t("validation_required"));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("contracts")
+        .update({
+          asset_name: formData.asset_name,
+          type: formData.type,
+          provider: formData.provider,
+          expiry_date: formData.expiry_date,
+          cost: parseFloat(formData.cost) || 0,
+          billing_cycle: formData.billing_cycle,
+        })
+        .eq("id", editingContract.id);
+
+      if (error) throw error;
+
+      await logActivity("UPDATE", "Contract", `${t("logs_contract_updated")}: ${formData.asset_name} (${formData.type})`);
+      toast.success(t("contracts_updated"));
+      setIsEditModalOpen(false);
+      setEditingContract(null);
+      setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
+      fetchContracts();
+    } catch (error) {
+      console.error("Error updating contract:", error);
+      toast.error("Failed to update contract");
     } finally {
       setIsSubmitting(false);
     }
@@ -300,6 +352,103 @@ export default function ContractMonitor() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+          setIsEditModalOpen(open);
+          if (!open) {
+            setEditingContract(null);
+            setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
+          }
+        }}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>{t("contracts_edit_title")}</DialogTitle>
+              <DialogDescription>{t("contracts_edit_description")}</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>{t("contracts_asset_name")} *</Label>
+                <Input
+                  placeholder="e.g., company.com"
+                  value={formData.asset_name}
+                  onChange={(e) => setFormData({ ...formData, asset_name: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("contracts_type")}</Label>
+                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Domain">{t("type_domain")}</SelectItem>
+                    <SelectItem value="Hosting">{t("type_hosting")}</SelectItem>
+                    <SelectItem value="SSL">{t("type_ssl")}</SelectItem>
+                    <SelectItem value="Software">{t("type_software")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("contracts_provider")} *</Label>
+                <Input
+                  placeholder="e.g., Namecheap"
+                  value={formData.provider}
+                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("contracts_expiry_date")} *</Label>
+                <Input
+                  type="date"
+                  value={formData.expiry_date}
+                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("contracts_cost")} (VND)</Label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={formData.cost ? Number(formData.cost).toLocaleString('vi-VN') : ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                        setFormData({ ...formData, cost: value });
+                      }}
+                      className="input-field pr-10"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">đ</span>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("contracts_billing_cycle")}</Label>
+                  <Select value={formData.billing_cycle} onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="Monthly">{t("billing_monthly")}</SelectItem>
+                      <SelectItem value="Yearly">{t("billing_yearly")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>{t("btn_cancel")}</Button>
+              <Button onClick={handleUpdate} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {t("btn_save")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats */}
@@ -439,14 +588,24 @@ export default function ContractMonitor() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(contract.id, contract.asset_name)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => handleEdit(contract)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDelete(contract.id, contract.asset_name)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
