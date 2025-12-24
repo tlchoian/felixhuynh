@@ -252,6 +252,21 @@ export const translations = {
     wiki_cat_monitoring: "Monitoring",
     wiki_cat_best_practices: "Best Practices",
     
+    // Settings
+    settings: "Settings",
+    settings_description: "Configure application settings and integrations",
+    telegram_config: "Telegram Bot Configuration",
+    telegram_config_description: "Configure Telegram notifications for contract expiry alerts",
+    telegram_bot_token: "Bot Token",
+    telegram_chat_id: "Chat ID",
+    enable_expiry_alerts: "Enable Contract Expiry Alerts",
+    enable_expiry_alerts_description: "Receive Telegram notifications when contracts are about to expire",
+    save_config: "Save Configuration",
+    settings_saved: "Settings Saved",
+    settings_saved_description: "Your settings have been saved successfully",
+    error: "Error",
+    nav_settings: "Settings",
+
     // Misc
     loading: "Loading...",
     all_types: "All Types",
@@ -518,6 +533,21 @@ export const translations = {
     wiki_cat_monitoring: "Giám Sát",
     wiki_cat_best_practices: "Thực Hành Tốt",
     
+    // Settings
+    settings: "Cài Đặt",
+    settings_description: "Cấu hình cài đặt và tích hợp ứng dụng",
+    telegram_config: "Cấu hình Telegram Bot",
+    telegram_config_description: "Cấu hình thông báo Telegram cho cảnh báo hợp đồng hết hạn",
+    telegram_bot_token: "Bot Token",
+    telegram_chat_id: "Chat ID",
+    enable_expiry_alerts: "Bật thông báo hợp đồng hết hạn",
+    enable_expiry_alerts_description: "Nhận thông báo Telegram khi hợp đồng sắp hết hạn",
+    save_config: "Lưu Cấu Hình",
+    settings_saved: "Đã Lưu Cài Đặt",
+    settings_saved_description: "Cài đặt của bạn đã được lưu thành công",
+    error: "Lỗi",
+    nav_settings: "Cài Đặt",
+
     // Misc
     loading: "Đang tải...",
     all_types: "Tất Cả Loại",
