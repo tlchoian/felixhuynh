@@ -336,7 +336,7 @@ export default function ContractMonitor() {
               <DollarSign className="w-5 h-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">${totalMonthlyCost.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-foreground">{totalMonthlyCost.toLocaleString('vi-VN')} đ</p>
               <p className="text-xs text-muted-foreground">{t("contracts_monthly_cost")}</p>
             </div>
           </div>
@@ -424,7 +424,7 @@ export default function ContractMonitor() {
                       </span>
                     </TableCell>
                     <TableCell className="text-foreground">
-                      ${contract.cost.toFixed(2)}/{contract.billing_cycle === "Monthly" ? "mo" : "yr"}
+                      {contract.cost.toLocaleString('vi-VN')} đ/{contract.billing_cycle === "Monthly" ? "tháng" : "năm"}
                     </TableCell>
                     <TableCell>
                       <span className={`status-badge ${status.className}`}>
