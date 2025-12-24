@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Settings as SettingsIcon, Send, Save, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, Send, Save, Loader2, MessageCircle } from "lucide-react";
 
 interface AppSettings {
   id?: string;
@@ -22,6 +22,7 @@ export default function Settings() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
     telegram_bot_token: "",
     telegram_chat_id: "",
@@ -110,6 +111,43 @@ export default function Settings() {
     }
   };
 
+  const handleTestMessage = async () => {
+    if (!settings.telegram_bot_token || !settings.telegram_chat_id) {
+      toast({
+        title: t("error"),
+        description: t("telegram_missing_config"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTesting(true);
+    try {
+      const url = `https://api.telegram.org/bot${settings.telegram_bot_token}/sendMessage?chat_id=${encodeURIComponent(settings.telegram_chat_id)}&text=${encodeURIComponent("✅ Hello from IT Omni App! Kết nối Telegram thành công.")}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.ok) {
+        toast({
+          title: t("telegram_test_success"),
+          description: t("telegram_test_success_description"),
+        });
+      } else {
+        throw new Error(data.description || "Telegram API error");
+      }
+    } catch (error: any) {
+      console.error("Error sending test message:", error);
+      toast({
+        title: t("error"),
+        description: error.message || t("telegram_test_failed"),
+        variant: "destructive",
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -191,14 +229,29 @@ export default function Settings() {
             />
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
-            {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            {t("save_config")}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
+              {saving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {t("save_config")}
+            </Button>
+            <Button 
+              onClick={handleTestMessage} 
+              disabled={testing || !settings.telegram_bot_token || !settings.telegram_chat_id}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              {testing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <MessageCircle className="mr-2 h-4 w-4" />
+              )}
+              {t("telegram_send_test")}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

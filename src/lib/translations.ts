@@ -276,6 +276,11 @@ export const translations = {
     save_config: "Save Configuration",
     settings_saved: "Settings Saved",
     settings_saved_description: "Your settings have been saved successfully",
+    telegram_send_test: "Send Test Message",
+    telegram_test_success: "Test Message Sent",
+    telegram_test_success_description: "Message was sent successfully to your Telegram",
+    telegram_test_failed: "Failed to send test message",
+    telegram_missing_config: "Please enter Bot Token and Chat ID first",
     error: "Error",
     nav_settings: "Settings",
 
@@ -587,6 +592,11 @@ export const translations = {
     save_config: "Lưu Cấu Hình",
     settings_saved: "Đã Lưu Cài Đặt",
     settings_saved_description: "Cài đặt của bạn đã được lưu thành công",
+    telegram_send_test: "Gửi Tin Nhắn Test",
+    telegram_test_success: "Gửi Tin Nhắn Thành Công",
+    telegram_test_success_description: "Tin nhắn đã được gửi thành công đến Telegram của bạn",
+    telegram_test_failed: "Không thể gửi tin nhắn test",
+    telegram_missing_config: "Vui lòng nhập Bot Token và Chat ID trước",
     error: "Lỗi",
     nav_settings: "Cài Đặt",
 

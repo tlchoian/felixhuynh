@@ -31,6 +31,7 @@ import {
   Legend
 } from "recharts";
 import { format, parseISO, startOfMonth, addMonths } from "date-fns";
+import { vi } from "date-fns/locale";
 
 interface DashboardStats {
   pendingTasks: number;
@@ -240,10 +241,20 @@ export default function Dashboard() {
       }
     });
 
-    return Object.entries(expiryData).map(([month, count]) => ({
-      month: format(parseISO(month + "-01"), "MMM"),
-      count,
-    }));
+    // Vietnamese month abbreviations: T1, T2, T3, etc.
+    const viMonthMap: Record<string, string> = {
+      "Jan": "T1", "Feb": "T2", "Mar": "T3", "Apr": "T4",
+      "May": "T5", "Jun": "T6", "Jul": "T7", "Aug": "T8",
+      "Sep": "T9", "Oct": "T10", "Nov": "T11", "Dec": "T12"
+    };
+    
+    return Object.entries(expiryData).map(([month, count]) => {
+      const engMonth = format(parseISO(month + "-01"), "MMM");
+      return {
+        month: viMonthMap[engMonth] || engMonth,
+        count,
+      };
+    });
   };
 
   const formatTimeAgo = (dateString: string) => {
