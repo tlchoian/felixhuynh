@@ -64,13 +64,19 @@ interface MonthlyCost {
   cost: number;
 }
 
+interface ContractExpiry {
+  month: string;
+  count: number;
+}
+
+// Professional tech colors for device types
 const DEVICE_COLORS = {
-  Router: "#ef4444",
-  Switch: "#3b82f6",
-  AP: "#22c55e",
-  Server: "#a855f7",
-  Camera: "#f97316",
-  Workstation: "#06b6d4",
+  Router: "#3b82f6",      // Blue
+  Switch: "#8b5cf6",      // Purple
+  AP: "#06b6d4",          // Cyan
+  Server: "#f97316",      // Orange
+  Camera: "#ec4899",      // Pink
+  Workstation: "#10b981", // Emerald
 };
 
 export default function Dashboard() {
@@ -86,6 +92,7 @@ export default function Dashboard() {
   const [monthlyCosts, setMonthlyCosts] = useState<MonthlyCost[]>([]);
   const [deviceStats, setDeviceStats] = useState<DeviceTypeStat[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
+  const [contractExpiry, setContractExpiry] = useState<ContractExpiry[]>([]);
 
   const quickActions = [
     { icon: Plus, label: t("dashboard_add_ticket"), path: "/tasks", color: "bg-primary/20 text-primary" },
@@ -127,7 +134,7 @@ export default function Dashboard() {
           totalCredentials: credentialsCount || 0,
         });
 
-        // Fetch contracts for cost analysis
+        // Fetch contracts for cost analysis and expiry timeline
         const { data: contracts } = await supabase
           .from("contracts")
           .select("expiry_date, cost, billing_cycle");
@@ -135,6 +142,10 @@ export default function Dashboard() {
         if (contracts) {
           const costByMonth = calculateMonthlyCosts(contracts);
           setMonthlyCosts(costByMonth);
+          
+          // Calculate contract expiry by month for next 6 months
+          const expiryByMonth = calculateContractExpiry(contracts);
+          setContractExpiry(expiryByMonth);
         }
 
         // Fetch device types for pie chart
@@ -208,6 +219,33 @@ export default function Dashboard() {
     }));
   };
 
+  const calculateContractExpiry = (contracts: Contract[]): ContractExpiry[] => {
+    const today = new Date();
+    const expiryData: Record<string, number> = {};
+
+    // Initialize next 6 months
+    for (let i = 0; i < 6; i++) {
+      const monthDate = startOfMonth(addMonths(today, i));
+      const monthKey = format(monthDate, "yyyy-MM");
+      expiryData[monthKey] = 0;
+    }
+
+    // Count contracts expiring in each month
+    contracts.forEach((contract) => {
+      const expiryDate = parseISO(contract.expiry_date);
+      const expiryMonthKey = format(startOfMonth(expiryDate), "yyyy-MM");
+      
+      if (expiryData.hasOwnProperty(expiryMonthKey)) {
+        expiryData[expiryMonthKey]++;
+      }
+    });
+
+    return Object.entries(expiryData).map(([month, count]) => ({
+      month: format(parseISO(month + "-01"), "MMM"),
+      count,
+    }));
+  };
+
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -277,67 +315,29 @@ export default function Dashboard() {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Cost Bar Chart */}
-        <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">{t("dashboard_cost_analysis")}</h2>
-          {monthlyCosts.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyCosts} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                  tickLine={{ stroke: "hsl(var(--border))" }}
-                />
-                <YAxis 
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                  tickLine={{ stroke: "hsl(var(--border))" }}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                    color: "hsl(var(--foreground))",
-                  }}
-                  formatter={(value: number) => [`$${value.toFixed(2)}`, t("contracts_cost")]}
-                />
-                <Bar 
-                  dataKey="cost" 
-                  fill="hsl(var(--primary))" 
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-              {t("contracts_no_contracts")}
-            </div>
-          )}
-        </div>
-
         {/* Device Type Pie Chart */}
         <div className="glass-card p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">{t("dashboard_device_stats")}</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-4">{t("dashboard_device_distribution")}</h2>
           {deviceStats.length > 0 ? (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={deviceStats}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
+                  cy="45%"
+                  innerRadius={55}
+                  outerRadius={95}
+                  paddingAngle={3}
                   dataKey="value"
                   label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  labelLine={{ stroke: "hsl(var(--muted-foreground))" }}
+                  labelLine={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1 }}
                 >
                   {deviceStats.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
-                      fill={DEVICE_COLORS[entry.name as keyof typeof DEVICE_COLORS] || "#8884d8"} 
+                      fill={DEVICE_COLORS[entry.name as keyof typeof DEVICE_COLORS] || "#6366f1"} 
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
                     />
                   ))}
                 </Pie>
@@ -348,17 +348,72 @@ export default function Dashboard() {
                     borderRadius: "8px",
                     color: "hsl(var(--foreground))",
                   }}
-                  formatter={(value: number, name: string) => [value, t(`device_${name.toLowerCase()}` as any) || name]}
+                  formatter={(value: number, name: string) => [
+                    `${value} ${t("devices")}`, 
+                    t(`device_${name.toLowerCase()}` as any) || name
+                  ]}
                 />
                 <Legend 
-                  wrapperStyle={{ color: "hsl(var(--foreground))" }}
+                  verticalAlign="bottom"
+                  height={36}
                   formatter={(value) => <span className="text-foreground text-sm">{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
               {t("network_no_devices")}
+            </div>
+          )}
+        </div>
+
+        {/* Contract Expiry Bar Chart */}
+        <div className="glass-card p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">{t("dashboard_contract_expiry")}</h2>
+          {contractExpiry.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={contractExpiry} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tickLine={{ stroke: "hsl(var(--border))" }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                />
+                <YAxis 
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tickLine={{ stroke: "hsl(var(--border))" }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    color: "hsl(var(--foreground))",
+                  }}
+                  formatter={(value: number) => [
+                    `${value} ${t("contracts")}`, 
+                    t("dashboard_expiring")
+                  ]}
+                />
+                <Bar 
+                  dataKey="count" 
+                  radius={[6, 6, 0, 0]}
+                >
+                  {contractExpiry.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.count > 0 ? "#ef4444" : "#3b82f6"} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              {t("contracts_no_contracts")}
             </div>
           )}
         </div>

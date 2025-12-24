@@ -92,7 +92,12 @@ export const translations = {
     dashboard_uptime: "Uptime",
     dashboard_cost_analysis: "Estimated IT Costs",
     dashboard_device_stats: "Device Distribution",
+    dashboard_device_distribution: "Device Distribution",
+    dashboard_contract_expiry: "Contracts Expiring by Month",
+    dashboard_expiring: "Expiring",
     dashboard_recent_activity: "Recent Activity",
+    devices: "devices",
+    contracts: "contracts",
     
     // Credential Vault
     vault_title: "Credential Vault",
@@ -398,7 +403,12 @@ export const translations = {
     dashboard_uptime: "Thời gian hoạt động",
     dashboard_cost_analysis: "Chi Phí IT Dự Kiến",
     dashboard_device_stats: "Cơ Cấu Thiết Bị",
+    dashboard_device_distribution: "Cơ Cấu Thiết Bị",
+    dashboard_contract_expiry: "Hợp Đồng Hết Hạn Theo Tháng",
+    dashboard_expiring: "Hết hạn",
     dashboard_recent_activity: "Hoạt Động Gần Đây",
+    devices: "thiết bị",
+    contracts: "hợp đồng",
     
     // Credential Vault
     vault_title: "Kho Mật Khẩu",
