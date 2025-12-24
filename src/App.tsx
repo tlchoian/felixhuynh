@@ -3,7 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
 import { AppLayout } from "./components/layout/AppLayout";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
+import Auth from "./pages/Auth";
 import Index from "./pages/Index";
 import CredentialVault from "./pages/CredentialVault";
 import ContractMonitor from "./pages/ContractMonitor";
@@ -16,23 +19,35 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AppLayout>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/credentials" element={<CredentialVault />} />
-            <Route path="/contracts" element={<ContractMonitor />} />
-            <Route path="/network" element={<NetworkIPAM />} />
-            <Route path="/tasks" element={<TaskTracker />} />
-            <Route path="/wiki" element={<TechWiki />} />
-            <Route path="*" element={<NotFound />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <AppLayout>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/credentials" element={<CredentialVault />} />
+                      <Route path="/contracts" element={<ContractMonitor />} />
+                      <Route path="/network" element={<NetworkIPAM />} />
+                      <Route path="/tasks" element={<TaskTracker />} />
+                      <Route path="/wiki" element={<TechWiki />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
-        </AppLayout>
-      </BrowserRouter>
-    </TooltipProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

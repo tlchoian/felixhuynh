@@ -9,10 +9,14 @@ import {
   Shield,
   ChevronLeft,
   ChevronRight,
+  LogOut,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -26,11 +30,17 @@ const navItems = [
 export function AppSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Signed out successfully");
+  };
 
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border z-50 transition-all duration-300",
+        "fixed left-0 top-0 h-full bg-sidebar border-r border-sidebar-border z-50 transition-all duration-300 flex flex-col",
         collapsed ? "w-20" : "w-64"
       )}
     >
@@ -58,7 +68,7 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="p-4 space-y-2">
+      <nav className="p-4 space-y-2 flex-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
@@ -78,8 +88,42 @@ export function AppSidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="absolute bottom-4 left-0 right-0 px-4">
+      {/* User & Sign Out */}
+      <div className="p-4 border-t border-sidebar-border space-y-3">
+        {user && (
+          <div className={cn(
+            "flex items-center gap-3 px-2",
+            collapsed && "justify-center"
+          )}>
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <User className="w-4 h-4 text-primary" />
+            </div>
+            {!collapsed && (
+              <div className="animate-fade-in min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {user.email?.split("@")[0]}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
+            )}
+          </div>
+        )}
+        
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full text-muted-foreground hover:text-foreground hover:bg-destructive/10",
+            collapsed ? "px-0 justify-center" : "justify-start"
+          )}
+          onClick={handleSignOut}
+        >
+          <LogOut className="w-5 h-5" />
+          {!collapsed && <span className="ml-3">Sign Out</span>}
+        </Button>
+      </div>
+
+      {/* Status */}
+      <div className="p-4">
         <div className={cn(
           "glass-card p-4",
           collapsed && "p-2"
