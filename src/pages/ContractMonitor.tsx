@@ -261,14 +261,21 @@ export default function ContractMonitor() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>{t("contracts_cost")}</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={formData.cost}
-                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                    className="input-field"
-                  />
+                  <Label>{t("contracts_cost")} (VND)</Label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={formData.cost ? Number(formData.cost).toLocaleString('vi-VN') : ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                        setFormData({ ...formData, cost: value });
+                      }}
+                      className="input-field pr-10"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">đ</span>
+                  </div>
                 </div>
                 <div className="grid gap-2">
                   <Label>{t("contracts_billing_cycle")}</Label>
