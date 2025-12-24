@@ -51,8 +51,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
 
 export function useAppSettings() {
   const context = useContext(AppSettingsContext);
+  // Return default values if not within provider (e.g., on Auth page before login)
   if (context === undefined) {
-    throw new Error("useAppSettings must be used within an AppSettingsProvider");
+    return { logoUrl: null, loading: false, refetch: async () => {} };
   }
   return context;
 }
