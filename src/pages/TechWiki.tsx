@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Plus,
   Clock,
-  User,
   Edit,
   Loader2,
   Trash2,
@@ -37,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface WikiArticle {
   id: string;
@@ -47,7 +47,37 @@ interface WikiArticle {
   updated_at: string;
 }
 
-const defaultArticleContent = `# Getting Started
+export default function TechWiki() {
+  const { user } = useAuth();
+  const { t, language } = useLanguage();
+  const [articles, setArticles] = useState<WikiArticle[]>([]);
+  const [selectedArticle, setSelectedArticle] = useState<WikiArticle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+
+  const defaultArticleContent = language === "vi" 
+    ? `# Bắt Đầu
+
+## Tổng Quan
+Viết tài liệu của bạn ở đây sử dụng cú pháp Markdown.
+
+## Ví Dụ Code
+\`\`\`bash
+# Lệnh ví dụ
+echo "Xin chào"
+\`\`\`
+
+## Các Bước
+1. Bước đầu tiên
+2. Bước thứ hai
+3. Bước thứ ba
+`
+    : `# Getting Started
 
 ## Overview
 Write your documentation here using Markdown syntax.
@@ -62,23 +92,7 @@ echo "Hello World"
 1. First step
 2. Second step
 3. Third step
-
-## Notes
-- Important note 1
-- Important note 2
 `;
-
-export default function TechWiki() {
-  const { user } = useAuth();
-  const [articles, setArticles] = useState<WikiArticle[]>([]);
-  const [selectedArticle, setSelectedArticle] = useState<WikiArticle | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -112,7 +126,7 @@ export default function TechWiki() {
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.content) {
-      toast.error("Please fill in title and content");
+      toast.error(t("validation_required"));
       return;
     }
 
@@ -127,7 +141,7 @@ export default function TechWiki() {
 
       if (error) throw error;
 
-      toast.success("Article created successfully");
+      toast.success(t("wiki_created"));
       setIsAddModalOpen(false);
       setFormData({ title: "", category: "General", content: defaultArticleContent });
       fetchArticles();
@@ -153,7 +167,7 @@ export default function TechWiki() {
 
       if (error) throw error;
 
-      toast.success("Article updated");
+      toast.success(t("wiki_article_updated"));
       setIsEditing(false);
       setSelectedArticle({ ...selectedArticle, content: editContent });
       fetchArticles();
@@ -167,7 +181,7 @@ export default function TechWiki() {
     try {
       const { error } = await supabase.from("wiki_docs").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Article deleted");
+      toast.success(t("wiki_article_deleted"));
       if (selectedArticle?.id === id) {
         setSelectedArticle(null);
       }
@@ -206,7 +220,7 @@ export default function TechWiki() {
           return <li key={i} className="text-muted-foreground ml-4">{line.slice(2)}</li>;
         }
         if (line.match(/^\d+\. /)) {
-          return <li key={i} className="text-muted-foreground ml-4 list-decimal">{line.replace(/^\d+\. /, '')}</li>;
+          return <li key={i} className="text-muted-foreground ml-4 list-decimal">{line.replace(/^\d+\. /, "")}</li>;
         }
         if (line.trim() === "") {
           return <br key={i} />;
@@ -230,26 +244,26 @@ export default function TechWiki() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-primary" />
-            Tech Wiki
+            {t("wiki_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">IT Documentation & Knowledge Base</p>
+          <p className="text-muted-foreground mt-1">{t("wiki_subtitle")}</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4 mr-2" />
-              New Article
+              {t("btn_new_article")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Article</DialogTitle>
-              <DialogDescription>Add a new article to your knowledge base.</DialogDescription>
+              <DialogTitle>{t("wiki_add_title")}</DialogTitle>
+              <DialogDescription>{t("wiki_add_description")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Title *</Label>
+                  <Label>{t("wiki_article_title")} *</Label>
                   <Input
                     placeholder="e.g., Ubuntu Server Setup"
                     value={formData.title}
@@ -258,24 +272,24 @@ export default function TechWiki() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Category</Label>
+                  <Label>{t("wiki_category")}</Label>
                   <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
                     <SelectTrigger className="input-field">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="General">General</SelectItem>
-                      <SelectItem value="Linux">Linux</SelectItem>
-                      <SelectItem value="Networking">Networking</SelectItem>
-                      <SelectItem value="Security">Security</SelectItem>
-                      <SelectItem value="Monitoring">Monitoring</SelectItem>
-                      <SelectItem value="Best Practices">Best Practices</SelectItem>
+                      <SelectItem value="General">{t("wiki_cat_general")}</SelectItem>
+                      <SelectItem value="Linux">{t("wiki_cat_linux")}</SelectItem>
+                      <SelectItem value="Networking">{t("wiki_cat_networking")}</SelectItem>
+                      <SelectItem value="Security">{t("wiki_cat_security")}</SelectItem>
+                      <SelectItem value="Monitoring">{t("wiki_cat_monitoring")}</SelectItem>
+                      <SelectItem value="Best Practices">{t("wiki_cat_best_practices")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label>Content (Markdown) *</Label>
+                <Label>{t("wiki_content")} *</Label>
                 <Textarea
                   placeholder="Write your documentation here..."
                   value={formData.content}
@@ -285,10 +299,10 @@ export default function TechWiki() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>{t("btn_cancel")}</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create Article
+                {t("btn_save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -303,7 +317,7 @@ export default function TechWiki() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search articles..."
+              placeholder={t("wiki_search")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 input-field"
@@ -313,7 +327,7 @@ export default function TechWiki() {
           {/* Categories */}
           {categories.length > 0 && (
             <div className="glass-card p-4">
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">Categories</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">{t("wiki_categories")}</h3>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="ghost"
@@ -324,7 +338,7 @@ export default function TechWiki() {
                   )}
                   onClick={() => setSelectedCategory(null)}
                 >
-                  All
+                  {t("wiki_all")}
                 </Button>
                 {categories.map((cat) => (
                   <Button
@@ -349,7 +363,7 @@ export default function TechWiki() {
             <div className="p-2 space-y-1">
               {filteredArticles.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground text-sm">
-                  No articles yet. Create your first one!
+                  {t("wiki_no_articles")}
                 </div>
               ) : (
                 filteredArticles.map((article) => (
@@ -405,7 +419,7 @@ export default function TechWiki() {
                     <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        Updated: {new Date(selectedArticle.updated_at).toLocaleDateString()}
+                        {t("wiki_updated")}: {new Date(selectedArticle.updated_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
@@ -413,7 +427,7 @@ export default function TechWiki() {
                     {isEditing ? (
                       <Button onClick={handleSaveEdit} size="sm" className="bg-primary text-primary-foreground">
                         <Save className="w-4 h-4 mr-2" />
-                        Save
+                        {t("btn_save")}
                       </Button>
                     ) : (
                       <Button
@@ -425,7 +439,7 @@ export default function TechWiki() {
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
-                        Edit
+                        {t("btn_edit")}
                       </Button>
                     )}
                     <Button
@@ -459,8 +473,8 @@ export default function TechWiki() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No article selected</h3>
-                <p className="text-sm text-muted-foreground">Select an article or create a new one</p>
+                <h3 className="text-lg font-medium text-foreground mb-2">{t("wiki_no_selected")}</h3>
+                <p className="text-sm text-muted-foreground">{t("wiki_no_selected_desc")}</p>
               </div>
             </div>
           )}

@@ -11,30 +11,37 @@ import {
   ChevronRight,
   LogOut,
   User,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
-
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: KeyRound, label: "Credential Vault", path: "/credentials" },
-  { icon: FileText, label: "Contracts & Licenses", path: "/contracts" },
-  { icon: Network, label: "Network IPAM", path: "/network" },
-  { icon: ClipboardList, label: "Task Tracker", path: "/tasks" },
-  { icon: BookOpen, label: "Tech Wiki", path: "/wiki" },
-];
 
 export function AppSidebar() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const { user, signOut } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+
+  const navItems = [
+    { icon: LayoutDashboard, label: t("nav_dashboard"), path: "/" },
+    { icon: KeyRound, label: t("nav_vault"), path: "/credentials" },
+    { icon: FileText, label: t("nav_contracts"), path: "/contracts" },
+    { icon: Network, label: t("nav_network"), path: "/network" },
+    { icon: ClipboardList, label: t("nav_tasks"), path: "/tasks" },
+    { icon: BookOpen, label: t("nav_wiki"), path: "/wiki" },
+  ];
 
   const handleSignOut = async () => {
     await signOut();
-    toast.success("Signed out successfully");
+    toast.success(t("auth_signed_out"));
+  };
+
+  const toggleLanguage = () => {
+    setLanguage(language === "vi" ? "en" : "vi");
   };
 
   return (
@@ -52,8 +59,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="animate-fade-in">
-              <h1 className="font-semibold text-foreground">IT Omni</h1>
-              <p className="text-xs text-muted-foreground">Management System</p>
+              <h1 className="font-semibold text-foreground">{t("app_name")}</h1>
+              <p className="text-xs text-muted-foreground">{t("app_subtitle")}</p>
             </div>
           )}
         </div>
@@ -88,6 +95,25 @@ export function AppSidebar() {
         })}
       </nav>
 
+      {/* Language Toggle */}
+      <div className="px-4 py-2">
+        <Button
+          variant="ghost"
+          className={cn(
+            "w-full text-muted-foreground hover:text-foreground hover:bg-secondary/50",
+            collapsed ? "px-0 justify-center" : "justify-start"
+          )}
+          onClick={toggleLanguage}
+        >
+          <Globe className="w-5 h-5" />
+          {!collapsed && (
+            <span className="ml-3 flex items-center gap-2">
+              {language === "vi" ? "🇻🇳 Tiếng Việt" : "🇬🇧 English"}
+            </span>
+          )}
+        </Button>
+      </div>
+
       {/* User & Sign Out */}
       <div className="p-4 border-t border-sidebar-border space-y-3">
         {user && (
@@ -118,7 +144,7 @@ export function AppSidebar() {
           onClick={handleSignOut}
         >
           <LogOut className="w-5 h-5" />
-          {!collapsed && <span className="ml-3">Sign Out</span>}
+          {!collapsed && <span className="ml-3">{t("btn_sign_out")}</span>}
         </Button>
       </div>
 
@@ -130,10 +156,10 @@ export function AppSidebar() {
         )}>
           {!collapsed ? (
             <div className="animate-fade-in">
-              <p className="text-xs text-muted-foreground">System Status</p>
+              <p className="text-xs text-muted-foreground">{t("system_status")}</p>
               <div className="flex items-center gap-2 mt-1">
                 <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                <span className="text-sm text-success">All Systems Operational</span>
+                <span className="text-sm text-success">{t("all_systems_operational")}</span>
               </div>
             </div>
           ) : (

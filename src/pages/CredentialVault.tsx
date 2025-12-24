@@ -6,7 +6,6 @@ import {
   Search,
   Copy,
   ExternalLink,
-  Pencil,
   Trash2,
   Shield,
   Lock,
@@ -42,6 +41,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Credential {
   id: string;
@@ -62,6 +62,7 @@ const categoryColors: Record<string, string> = {
 
 export default function CredentialVault() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
@@ -69,7 +70,6 @@ export default function CredentialVault() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Form state
   const [formData, setFormData] = useState({
     service_name: "",
     url: "",
@@ -101,7 +101,7 @@ export default function CredentialVault() {
 
   const handleSubmit = async () => {
     if (!formData.service_name || !formData.username || !formData.password) {
-      toast.error("Please fill in all required fields");
+      toast.error(t("validation_required"));
       return;
     }
 
@@ -118,7 +118,7 @@ export default function CredentialVault() {
 
       if (error) throw error;
 
-      toast.success("Credential added successfully");
+      toast.success(t("vault_credential_added"));
       setIsAddModalOpen(false);
       setFormData({ service_name: "", url: "", username: "", password: "", category: "Cloud" });
       fetchCredentials();
@@ -134,7 +134,7 @@ export default function CredentialVault() {
     try {
       const { error } = await supabase.from("credentials").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Credential deleted");
+      toast.success(t("vault_credential_deleted"));
       fetchCredentials();
     } catch (error) {
       console.error("Error deleting credential:", error);
@@ -154,7 +154,7 @@ export default function CredentialVault() {
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(`${type} copied to clipboard`);
+    toast.success(`${type} ${t("vault_copied")}`);
   };
 
   const filteredCredentials = credentials.filter(
@@ -179,32 +179,31 @@ export default function CredentialVault() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Shield className="w-8 h-8 text-primary" />
-            Credential Vault
+            {t("vault_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">Securely manage all your authentication credentials</p>
+          <p className="text-muted-foreground mt-1">{t("vault_subtitle")}</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4 mr-2" />
-              Add Credential
+              {t("btn_add_credential")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Lock className="w-5 h-5 text-primary" />
-                Add New Credential
+                {t("vault_add_title")}
               </DialogTitle>
               <DialogDescription>
-                Add a new credential to your secure vault.
+                {t("vault_add_description")}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="serviceName">Service Name *</Label>
+                <Label>{t("vault_service_name")} *</Label>
                 <Input
-                  id="serviceName"
                   placeholder="e.g., AWS Console"
                   value={formData.service_name}
                   onChange={(e) => setFormData({ ...formData, service_name: e.target.value })}
@@ -212,9 +211,8 @@ export default function CredentialVault() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="url">URL</Label>
+                <Label>{t("vault_url")}</Label>
                 <Input
-                  id="url"
                   placeholder="https://..."
                   value={formData.url}
                   onChange={(e) => setFormData({ ...formData, url: e.target.value })}
@@ -222,9 +220,8 @@ export default function CredentialVault() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="username">Username *</Label>
+                <Label>{t("vault_username")} *</Label>
                 <Input
-                  id="username"
                   placeholder="admin@example.com"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -232,9 +229,8 @@ export default function CredentialVault() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="password">Password *</Label>
+                <Label>{t("vault_password")} *</Label>
                 <Input
-                  id="password"
                   type="password"
                   placeholder="••••••••"
                   value={formData.password}
@@ -243,27 +239,27 @@ export default function CredentialVault() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="category">Category</Label>
+                <Label>{t("vault_category")}</Label>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}
                 >
                   <SelectTrigger className="input-field">
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Server">Server</SelectItem>
-                    <SelectItem value="Social">Social</SelectItem>
-                    <SelectItem value="Hosting">Hosting</SelectItem>
-                    <SelectItem value="Cloud">Cloud</SelectItem>
-                    <SelectItem value="Database">Database</SelectItem>
+                    <SelectItem value="Server">{t("category_server")}</SelectItem>
+                    <SelectItem value="Social">{t("category_social")}</SelectItem>
+                    <SelectItem value="Hosting">{t("category_hosting")}</SelectItem>
+                    <SelectItem value="Cloud">{t("category_cloud")}</SelectItem>
+                    <SelectItem value="Database">{t("category_database")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                Cancel
+                {t("btn_cancel")}
               </Button>
               <Button
                 className="bg-primary text-primary-foreground"
@@ -271,7 +267,7 @@ export default function CredentialVault() {
                 disabled={isSubmitting}
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Credential
+                {t("btn_save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -285,8 +281,8 @@ export default function CredentialVault() {
             <Lock className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">Secure Storage</p>
-            <p className="text-xs text-muted-foreground">Your credentials are stored securely with row-level security</p>
+            <p className="text-sm font-medium text-foreground">{t("vault_security_title")}</p>
+            <p className="text-xs text-muted-foreground">{t("vault_security_description")}</p>
           </div>
         </div>
       </div>
@@ -295,7 +291,7 @@ export default function CredentialVault() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by service, username, or category..."
+          placeholder={t("vault_search")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10 input-field"
@@ -307,23 +303,23 @@ export default function CredentialVault() {
         {filteredCredentials.length === 0 ? (
           <div className="p-12 text-center">
             <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No credentials yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Add your first credential to get started</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">{t("vault_no_credentials")}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t("vault_no_credentials_desc")}</p>
             <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
               <Plus className="w-4 h-4 mr-2" />
-              Add Credential
+              {t("btn_add_credential")}
             </Button>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Service Name</TableHead>
-                <TableHead className="text-muted-foreground">URL</TableHead>
-                <TableHead className="text-muted-foreground">Username</TableHead>
-                <TableHead className="text-muted-foreground">Password</TableHead>
-                <TableHead className="text-muted-foreground">Category</TableHead>
-                <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                <TableHead className="text-muted-foreground">{t("vault_service_name")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("vault_url")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("vault_username")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("vault_password")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("vault_category")}</TableHead>
+                <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -352,7 +348,7 @@ export default function CredentialVault() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => copyToClipboard(cred.username, "Username")}
+                        onClick={() => copyToClipboard(cred.username, t("vault_username"))}
                       >
                         <Copy className="w-3 h-3 text-muted-foreground" />
                       </Button>
@@ -379,7 +375,7 @@ export default function CredentialVault() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => copyToClipboard(cred.password, "Password")}
+                        onClick={() => copyToClipboard(cred.password, t("vault_password"))}
                       >
                         <Copy className="w-3 h-3 text-muted-foreground" />
                       </Button>
@@ -391,16 +387,14 @@ export default function CredentialVault() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(cred.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(cred.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
