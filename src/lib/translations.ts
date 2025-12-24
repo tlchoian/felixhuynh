@@ -90,6 +90,9 @@ export const translations = {
     dashboard_tip_wiki: "Build your knowledge base with wiki docs",
     dashboard_system_health: "System Health Overview",
     dashboard_uptime: "Uptime",
+    dashboard_cost_analysis: "Estimated IT Costs",
+    dashboard_device_stats: "Device Distribution",
+    dashboard_recent_activity: "Recent Activity",
     
     // Credential Vault
     vault_title: "Credential Vault",
@@ -389,6 +392,9 @@ export const translations = {
     dashboard_tip_wiki: "Xây dựng cơ sở kiến thức với wiki",
     dashboard_system_health: "Tổng Quan Sức Khỏe Hệ Thống",
     dashboard_uptime: "Thời gian hoạt động",
+    dashboard_cost_analysis: "Chi Phí IT Dự Kiến",
+    dashboard_device_stats: "Cơ Cấu Thiết Bị",
+    dashboard_recent_activity: "Hoạt Động Gần Đây",
     
     // Credential Vault
     vault_title: "Kho Mật Khẩu",
