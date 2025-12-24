@@ -13,6 +13,7 @@ import {
   User,
   Globe,
   History,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -35,6 +36,7 @@ export function AppSidebar() {
     { icon: ClipboardList, label: t("nav_tasks"), path: "/tasks" },
     { icon: BookOpen, label: t("nav_wiki"), path: "/wiki" },
     { icon: History, label: t("nav_activity_logs"), path: "/activity-logs" },
+    { icon: Settings, label: t("nav_settings"), path: "/settings" },
   ];
 
   const handleSignOut = async () => {

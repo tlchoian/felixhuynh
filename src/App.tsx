@@ -15,6 +15,7 @@ import NetworkIPAM from "./pages/NetworkIPAM";
 import TaskTracker from "./pages/TaskTracker";
 import TechWiki from "./pages/TechWiki";
 import ActivityLogs from "./pages/ActivityLogs";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
                         <Route path="/tasks" element={<TaskTracker />} />
                         <Route path="/wiki" element={<TechWiki />} />
                         <Route path="/activity-logs" element={<ActivityLogs />} />
+                        <Route path="/settings" element={<Settings />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </AppLayout>
