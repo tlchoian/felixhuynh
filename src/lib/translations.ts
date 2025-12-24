@@ -119,6 +119,10 @@ export const translations = {
     vault_copied: "copied to clipboard",
     vault_credential_added: "Credential added successfully",
     vault_credential_deleted: "Credential deleted",
+    vault_credential_updated: "Credential updated successfully",
+    vault_edit_title: "Update Credential",
+    vault_edit_description: "Update the credential details.",
+    logs_credential_updated: "Updated credential",
     
     // Categories
     category_server: "Server",
@@ -126,6 +130,9 @@ export const translations = {
     category_hosting: "Hosting",
     category_cloud: "Cloud",
     category_database: "Database",
+    category_banking: "Banking",
+    category_email: "Email",
+    category_vpn: "VPN",
     
     // Contracts
     contracts_title: "Contract & License Monitor",
@@ -467,6 +474,10 @@ export const translations = {
     vault_copied: "đã sao chép vào clipboard",
     vault_credential_added: "Thêm thông tin thành công",
     vault_credential_deleted: "Đã xóa thông tin",
+    vault_credential_updated: "Cập nhật thông tin thành công",
+    vault_edit_title: "Cập Nhật Thông Tin",
+    vault_edit_description: "Cập nhật chi tiết thông tin đăng nhập.",
+    logs_credential_updated: "Đã cập nhật thông tin đăng nhập",
     
     // Categories
     category_server: "Máy Chủ",
@@ -474,6 +485,9 @@ export const translations = {
     category_hosting: "Hosting",
     category_cloud: "Đám Mây",
     category_database: "Cơ Sở Dữ Liệu",
+    category_banking: "Ngân Hàng",
+    category_email: "Email",
+    category_vpn: "VPN",
     
     // Contracts
     contracts_title: "Giám Sát Hợp Đồng & Giấy Phép",

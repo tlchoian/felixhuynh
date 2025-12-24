@@ -11,6 +11,7 @@ import {
   Lock,
   Loader2,
   Upload,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,9 @@ const categoryColors: Record<string, string> = {
   Hosting: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   Cloud: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
   Database: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  Banking: "bg-green-500/20 text-green-400 border-green-500/30",
+  Email: "bg-red-500/20 text-red-400 border-red-500/30",
+  VPN: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
 };
 
 export default function CredentialVault() {
@@ -72,8 +76,11 @@ export default function CredentialVault() {
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [editingCredential, setEditingCredential] = useState<Credential | null>(null);
+  const [showFormPassword, setShowFormPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     service_name: "",
@@ -131,6 +138,55 @@ export default function CredentialVault() {
     } catch (error) {
       console.error("Error adding credential:", error);
       toast.error("Failed to add credential");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEdit = (credential: Credential) => {
+    setEditingCredential(credential);
+    setFormData({
+      service_name: credential.service_name,
+      url: credential.url || "",
+      username: credential.username,
+      password: credential.password,
+      category: credential.category,
+    });
+    setShowFormPassword(false);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCredential) return;
+    if (!formData.service_name || !formData.username || !formData.password) {
+      toast.error(t("validation_required"));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("credentials")
+        .update({
+          service_name: formData.service_name,
+          url: formData.url || null,
+          username: formData.username,
+          password: formData.password,
+          category: formData.category,
+        })
+        .eq("id", editingCredential.id);
+
+      if (error) throw error;
+
+      await logActivity("UPDATE", "Credential", `${t("logs_credential_updated")}: ${formData.service_name}`);
+      toast.success(t("vault_credential_updated"));
+      setIsEditModalOpen(false);
+      setEditingCredential(null);
+      setFormData({ service_name: "", url: "", username: "", password: "", category: "Cloud" });
+      fetchCredentials();
+    } catch (error) {
+      console.error("Error updating credential:", error);
+      toast.error("Failed to update credential");
     } finally {
       setIsSubmitting(false);
     }
@@ -265,13 +321,28 @@ export default function CredentialVault() {
               </div>
               <div className="grid gap-2">
                 <Label>{t("vault_password")} *</Label>
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="input-field"
-                />
+                <div className="relative">
+                  <Input
+                    type={showFormPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="input-field pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowFormPassword(!showFormPassword)}
+                  >
+                    {showFormPassword ? (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label>{t("vault_category")}</Label>
@@ -288,17 +359,123 @@ export default function CredentialVault() {
                     <SelectItem value="Hosting">{t("category_hosting")}</SelectItem>
                     <SelectItem value="Cloud">{t("category_cloud")}</SelectItem>
                     <SelectItem value="Database">{t("category_database")}</SelectItem>
+                    <SelectItem value="Banking">{t("category_banking")}</SelectItem>
+                    <SelectItem value="Email">{t("category_email")}</SelectItem>
+                    <SelectItem value="VPN">{t("category_vpn")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              <Button variant="outline" onClick={() => { setIsAddModalOpen(false); setShowFormPassword(false); }}>
                 {t("btn_cancel")}
               </Button>
               <Button
                 className="bg-primary text-primary-foreground"
                 onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {t("btn_save")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={(open) => { setIsEditModalOpen(open); if (!open) setShowFormPassword(false); }}>
+          <DialogContent className="bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-primary" />
+                {t("vault_edit_title")}
+              </DialogTitle>
+              <DialogDescription>
+                {t("vault_edit_description")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>{t("vault_service_name")} *</Label>
+                <Input
+                  placeholder="e.g., AWS Console"
+                  value={formData.service_name}
+                  onChange={(e) => setFormData({ ...formData, service_name: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("vault_url")}</Label>
+                <Input
+                  placeholder="https://..."
+                  value={formData.url}
+                  onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("vault_username")} *</Label>
+                <Input
+                  placeholder="admin@example.com"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("vault_password")} *</Label>
+                <div className="relative">
+                  <Input
+                    type={showFormPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="input-field pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowFormPassword(!showFormPassword)}
+                  >
+                    {showFormPassword ? (
+                      <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("vault_category")}</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value })}
+                >
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Server">{t("category_server")}</SelectItem>
+                    <SelectItem value="Social">{t("category_social")}</SelectItem>
+                    <SelectItem value="Hosting">{t("category_hosting")}</SelectItem>
+                    <SelectItem value="Cloud">{t("category_cloud")}</SelectItem>
+                    <SelectItem value="Database">{t("category_database")}</SelectItem>
+                    <SelectItem value="Banking">{t("category_banking")}</SelectItem>
+                    <SelectItem value="Email">{t("category_email")}</SelectItem>
+                    <SelectItem value="VPN">{t("category_vpn")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setShowFormPassword(false); }}>
+                {t("btn_cancel")}
+              </Button>
+              <Button
+                className="bg-primary text-primary-foreground"
+                onClick={handleUpdate}
                 disabled={isSubmitting}
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -434,14 +611,24 @@ export default function CredentialVault() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(cred.id, cred.service_name)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={() => handleEdit(cred)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(cred.id, cred.service_name)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
