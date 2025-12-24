@@ -14,6 +14,7 @@ import ContractMonitor from "./pages/ContractMonitor";
 import NetworkIPAM from "./pages/NetworkIPAM";
 import TaskTracker from "./pages/TaskTracker";
 import TechWiki from "./pages/TechWiki";
+import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                         <Route path="/network" element={<NetworkIPAM />} />
                         <Route path="/tasks" element={<TaskTracker />} />
                         <Route path="/wiki" element={<TechWiki />} />
+                        <Route path="/activity-logs" element={<ActivityLogs />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </AppLayout>
