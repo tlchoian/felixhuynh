@@ -290,12 +290,22 @@ export default function Dashboard() {
     );
   }
 
+  // Get user's display name
+  const getUserDisplayName = () => {
+    if (!user?.email) return "Sếp";
+    const emailPrefix = user.email.split("@")[0];
+    // Capitalize first letter
+    return emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">{t("dashboard_title")}</h1>
-        <p className="text-muted-foreground mt-1">{t("dashboard_subtitle")}</p>
+        <h1 className="text-3xl font-bold text-foreground">
+          Chào mừng {getUserDisplayName()} trở lại! 👋
+        </h1>
+        <p className="text-muted-foreground mt-1">Hệ thống đã sẵn sàng phục vụ.</p>
       </div>
 
       {/* Stats Grid */}
