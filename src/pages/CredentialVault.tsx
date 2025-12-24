@@ -10,6 +10,7 @@ import {
   Shield,
   Lock,
   Loader2,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 interface Credential {
   id: string;
@@ -71,6 +73,7 @@ export default function CredentialVault() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     service_name: "",
@@ -146,6 +149,29 @@ export default function CredentialVault() {
     }
   };
 
+  const handleCsvImport = async (data: Record<string, string>[]) => {
+    const credentialsToInsert = data.map((row) => ({
+      user_id: user?.id,
+      service_name: row.service_name || row["Service Name"] || "",
+      url: row.url || row["URL"] || null,
+      username: row.username || row["Username"] || "",
+      password: row.password || row["Password"] || "",
+      category: row.category || row["Category"] || "Cloud",
+    }));
+
+    const validCredentials = credentialsToInsert.filter(c => c.service_name && c.username && c.password);
+    
+    if (validCredentials.length === 0) {
+      throw new Error("No valid credentials found");
+    }
+
+    const { error } = await supabase.from("credentials").insert(validCredentials);
+    if (error) throw error;
+
+    await logActivity("CREATE", "Credential", `Imported ${validCredentials.length} credentials from CSV`);
+    fetchCredentials();
+  };
+
   const togglePasswordVisibility = (id: string) => {
     const newVisible = new Set(visiblePasswords);
     if (newVisible.has(id)) {
@@ -187,13 +213,18 @@ export default function CredentialVault() {
           </h1>
           <p className="text-muted-foreground mt-1">{t("vault_subtitle")}</p>
         </div>
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("btn_add_credential")}
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            {t("csv_import_button")}
+          </Button>
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("btn_add_credential")}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -276,7 +307,19 @@ export default function CredentialVault() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        templateColumns={["service_name", "url", "username", "password", "category"]}
+        templateFileName="credentials"
+        onImport={handleCsvImport}
+        title={t("csv_import_title")}
+        description={t("csv_import_description")}
+      />
 
       {/* Security Notice */}
       <div className="glass-card p-4 border-primary/30 bg-primary/5">
