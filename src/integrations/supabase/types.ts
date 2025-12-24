@@ -14,7 +14,231 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contracts: {
+        Row: {
+          asset_name: string
+          billing_cycle: string
+          cost: number
+          created_at: string
+          expiry_date: string
+          id: string
+          notes: string | null
+          provider: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          asset_name: string
+          billing_cycle?: string
+          cost?: number
+          created_at?: string
+          expiry_date: string
+          id?: string
+          notes?: string | null
+          provider: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          asset_name?: string
+          billing_cycle?: string
+          cost?: number
+          created_at?: string
+          expiry_date?: string
+          id?: string
+          notes?: string | null
+          provider?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      credentials: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          notes: string | null
+          password: string
+          service_name: string
+          updated_at: string
+          url: string | null
+          user_id: string
+          username: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          password: string
+          service_name: string
+          updated_at?: string
+          url?: string | null
+          user_id: string
+          username: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          password?: string
+          service_name?: string
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      network_devices: {
+        Row: {
+          created_at: string
+          device_name: string
+          id: string
+          ip_address: string
+          location: string
+          mac_address: string | null
+          notes: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+          vlan_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          device_name: string
+          id?: string
+          ip_address: string
+          location: string
+          mac_address?: string | null
+          notes?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+          vlan_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          device_name?: string
+          id?: string
+          ip_address?: string
+          location?: string
+          mac_address?: string | null
+          notes?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+          vlan_id?: number | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          department: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          department?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          requester: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          requester: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          requester?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wiki_docs: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
