@@ -14,6 +14,7 @@ import {
   List,
   GitBranch,
   Upload,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +101,18 @@ export default function NetworkIPAM() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "topology">("list");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<NetworkDevice | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    device_name: "",
+    ip_address: "",
+    type: "Workstation",
+    mac_address: "",
+    location: "",
+    vlan_id: "1",
+    status: "Online",
+    uplink_device_id: "",
+  });
 
   const [formData, setFormData] = useState({
     device_name: "",
@@ -204,6 +217,58 @@ export default function NetworkIPAM() {
 
     await logActivity("CREATE", "Device", `Imported ${validDevices.length} devices from CSV`);
     fetchDevices();
+  };
+
+  const handleEdit = (device: NetworkDevice) => {
+    setEditingDevice(device);
+    setEditFormData({
+      device_name: device.device_name,
+      ip_address: device.ip_address,
+      type: device.type,
+      mac_address: device.mac_address || "",
+      location: device.location,
+      vlan_id: device.vlan_id?.toString() || "1",
+      status: device.status,
+      uplink_device_id: device.uplink_device_id || "",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingDevice || !editFormData.device_name || !editFormData.ip_address || !editFormData.location) {
+      toast.error(t("validation_required"));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("network_devices")
+        .update({
+          device_name: editFormData.device_name,
+          ip_address: editFormData.ip_address,
+          type: editFormData.type,
+          mac_address: editFormData.mac_address || null,
+          location: editFormData.location,
+          vlan_id: parseInt(editFormData.vlan_id) || 1,
+          status: editFormData.status,
+          uplink_device_id: editFormData.uplink_device_id || null,
+        })
+        .eq("id", editingDevice.id);
+
+      if (error) throw error;
+
+      await logActivity("UPDATE", "Device", `${t("logs_device_updated")}: ${editFormData.device_name}`);
+      toast.success(t("network_device_updated"));
+      setIsEditModalOpen(false);
+      setEditingDevice(null);
+      fetchDevices();
+    } catch (error) {
+      console.error("Error updating device:", error);
+      toast.error("Failed to update device");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const locations = [...new Set(devices.map((d) => d.location))];
@@ -556,14 +621,24 @@ export default function NetworkIPAM() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(device.id, device.device_name)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(device)}
+                            className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(device.id, device.device_name)}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -573,6 +648,124 @@ export default function NetworkIPAM() {
           )}
         </div>
       )}
+
+      {/* Edit Device Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("network_edit_title")}</DialogTitle>
+            <DialogDescription>{t("network_edit_description")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>{t("network_device_name")} *</Label>
+              <Input
+                placeholder="e.g., SW-Floor1-01"
+                value={editFormData.device_name}
+                onChange={(e) => setEditFormData({ ...editFormData, device_name: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("network_ip_address")} *</Label>
+                <Input
+                  placeholder="192.168.1.1"
+                  value={editFormData.ip_address}
+                  onChange={(e) => setEditFormData({ ...editFormData, ip_address: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("network_type")}</Label>
+                <Select value={editFormData.type} onValueChange={(value) => setEditFormData({ ...editFormData, type: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Router">{t("device_router")}</SelectItem>
+                    <SelectItem value="Switch">{t("device_switch")}</SelectItem>
+                    <SelectItem value="AP">{t("device_ap")}</SelectItem>
+                    <SelectItem value="Server">{t("device_server")}</SelectItem>
+                    <SelectItem value="Camera">{t("device_camera")}</SelectItem>
+                    <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("network_mac_address")}</Label>
+              <Input
+                placeholder="00:1A:2B:3C:4D:5E"
+                value={editFormData.mac_address}
+                onChange={(e) => setEditFormData({ ...editFormData, mac_address: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("network_location")} *</Label>
+              <Input
+                placeholder="Branch A - Server Room"
+                value={editFormData.location}
+                onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("network_vlan")}</Label>
+                <Input
+                  type="number"
+                  placeholder="1"
+                  value={editFormData.vlan_id}
+                  onChange={(e) => setEditFormData({ ...editFormData, vlan_id: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("network_status")}</Label>
+                <Select value={editFormData.status} onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Online">{t("status_online")}</SelectItem>
+                    <SelectItem value="Offline">{t("status_offline")}</SelectItem>
+                    <SelectItem value="Maintenance">{t("status_maintenance")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {/* Uplink Device Dropdown */}
+            <div className="grid gap-2">
+              <Label>{t("network_uplink_device")}</Label>
+              <Select 
+                value={editFormData.uplink_device_id || "none"} 
+                onValueChange={(value) => setEditFormData({ ...editFormData, uplink_device_id: value === "none" ? "" : value })}
+              >
+                <SelectTrigger className="input-field">
+                  <SelectValue placeholder={t("network_uplink_none")} />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  <SelectItem value="none">{t("network_uplink_none")}</SelectItem>
+                  {devices.filter(d => d.id !== editingDevice?.id && ["Router", "Switch", "AP", "Server"].includes(d.type)).map((device) => (
+                    <SelectItem key={device.id} value={device.id}>
+                      {device.device_name} ({device.ip_address})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>{t("btn_cancel")}</Button>
+            <Button onClick={handleEditSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t("btn_save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
