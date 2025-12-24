@@ -1,5 +1,6 @@
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 interface StatCardProps {
   title: string;
@@ -11,9 +12,12 @@ interface StatCardProps {
   };
   className?: string;
   variant?: "default" | "warning" | "danger" | "success";
+  href?: string;
 }
 
-export function StatCard({ title, value, icon: Icon, trend, className, variant = "default" }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, trend, className, variant = "default", href }: StatCardProps) {
+  const navigate = useNavigate();
+  
   const variantStyles = {
     default: "border-border/50",
     warning: "border-warning/30 bg-warning/5",
@@ -28,8 +32,25 @@ export function StatCard({ title, value, icon: Icon, trend, className, variant =
     success: "text-success bg-success/20",
   };
 
+  const handleClick = () => {
+    if (href) {
+      navigate(href);
+    }
+  };
+
   return (
-    <div className={cn("stat-card", variantStyles[variant], className)}>
+    <div 
+      className={cn(
+        "stat-card", 
+        variantStyles[variant], 
+        className,
+        href && "cursor-pointer transition-transform duration-200 hover:scale-[1.02] hover:shadow-lg"
+      )}
+      onClick={handleClick}
+      role={href ? "button" : undefined}
+      tabIndex={href ? 0 : undefined}
+      onKeyDown={href ? (e) => e.key === "Enter" && handleClick() : undefined}
+    >
       <div className="flex items-start justify-between relative z-10">
         <div>
           <p className="text-sm text-muted-foreground">{title}</p>

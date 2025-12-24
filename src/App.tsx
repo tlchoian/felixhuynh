@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { AppSettingsProvider } from "@/hooks/useAppSettings";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import Auth from "./pages/Auth";
@@ -25,36 +26,38 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <LanguageProvider>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <Routes>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/credentials" element={<CredentialVault />} />
-                        <Route path="/contracts" element={<ContractMonitor />} />
-                        <Route path="/network" element={<NetworkIPAM />} />
-                        <Route path="/tasks" element={<TaskTracker />} />
-                        <Route path="/wiki" element={<TechWiki />} />
-                        <Route path="/activity-logs" element={<ActivityLogs />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="/users" element={<UserManager />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+        <AppSettingsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route
+                  path="/*"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Routes>
+                          <Route path="/" element={<Index />} />
+                          <Route path="/credentials" element={<CredentialVault />} />
+                          <Route path="/contracts" element={<ContractMonitor />} />
+                          <Route path="/network" element={<NetworkIPAM />} />
+                          <Route path="/tasks" element={<TaskTracker />} />
+                          <Route path="/wiki" element={<TechWiki />} />
+                          <Route path="/activity-logs" element={<ActivityLogs />} />
+                          <Route path="/settings" element={<Settings />} />
+                          <Route path="/users" element={<UserManager />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </BrowserRouter>
+          </TooltipProvider>
+        </AppSettingsProvider>
       </AuthProvider>
     </LanguageProvider>
   </QueryClientProvider>

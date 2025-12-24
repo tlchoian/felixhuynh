@@ -295,6 +295,26 @@ export const translations = {
     error: "Error",
     nav_settings: "Settings",
 
+    // Branding
+    branding_title: "Branding & Appearance",
+    branding_description: "Customize the appearance of your application",
+    branding_logo_url: "Logo URL",
+    branding_logo_hint: "Enter the URL of your logo image. It will be displayed on the login screen and sidebar.",
+
+    // Security
+    security_title: "Account Security",
+    security_description: "Manage your account security settings",
+    security_new_password: "New Password",
+    security_confirm_password: "Confirm Password",
+    security_change_password: "Change Password",
+    security_password_changed: "Password Changed",
+    security_password_changed_description: "Your password has been updated successfully",
+    security_password_mismatch: "Passwords do not match",
+
+    // Tasks Edit
+    tasks_edit_title: "Edit Task",
+    tasks_edit_description: "Update the task details",
+
     // CSV Import
     csv_import_button: "Import CSV",
     csv_import_title: "Bulk Import from CSV",
@@ -649,6 +669,26 @@ export const translations = {
     telegram_missing_config: "Vui lòng nhập Bot Token và Chat ID trước",
     error: "Lỗi",
     nav_settings: "Cài Đặt",
+
+    // Branding
+    branding_title: "Giao Diện & Thương Hiệu",
+    branding_description: "Tùy chỉnh giao diện ứng dụng",
+    branding_logo_url: "Link Ảnh Logo",
+    branding_logo_hint: "Nhập URL ảnh logo. Logo sẽ được hiển thị trên màn hình đăng nhập và thanh bên.",
+
+    // Security
+    security_title: "Bảo Mật Tài Khoản",
+    security_description: "Quản lý cài đặt bảo mật tài khoản",
+    security_new_password: "Mật Khẩu Mới",
+    security_confirm_password: "Xác Nhận Mật Khẩu",
+    security_change_password: "Đổi Mật Khẩu",
+    security_password_changed: "Đổi Mật Khẩu Thành Công",
+    security_password_changed_description: "Mật khẩu của bạn đã được cập nhật thành công",
+    security_password_mismatch: "Mật khẩu không khớp",
+
+    // Tasks Edit
+    tasks_edit_title: "Chỉnh Sửa Công Việc",
+    tasks_edit_description: "Cập nhật chi tiết công việc",
 
     // CSV Import
     csv_import_button: "Nhập từ CSV",

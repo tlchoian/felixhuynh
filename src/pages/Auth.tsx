@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import { toast } from "sonner";
 import { z } from "zod";
 import { ParticleNetwork } from "@/components/ParticleNetwork";
@@ -20,6 +21,7 @@ export default function Auth() {
   
   const { signIn, signUp, user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { logoUrl } = useAppSettings();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -124,8 +126,12 @@ export default function Auth() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-primary/30 shadow-lg shadow-primary/20">
-            <Server className="w-10 h-10 text-primary" />
+          <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-primary/30 shadow-lg shadow-primary/20 overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <Server className="w-10 h-10 text-primary" />
+            )}
           </div>
           <h1 className="text-2xl font-bold text-foreground">{t("app_name")}</h1>
           <p className="text-muted-foreground">{t("app_subtitle")}</p>

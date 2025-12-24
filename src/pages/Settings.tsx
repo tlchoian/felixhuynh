@@ -8,25 +8,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Settings as SettingsIcon, Send, Save, Loader2, MessageCircle } from "lucide-react";
+import { Settings as SettingsIcon, Send, Save, Loader2, MessageCircle, Palette, Lock, Eye, EyeOff, Image } from "lucide-react";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 interface AppSettings {
   id?: string;
   telegram_bot_token: string;
   telegram_chat_id: string;
   enable_expiry_alerts: boolean;
+  logo_url: string;
 }
 
 export default function Settings() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { refetch: refetchAppSettings } = useAppSettings();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [settings, setSettings] = useState<AppSettings>({
     telegram_bot_token: "",
     telegram_chat_id: "",
     enable_expiry_alerts: false,
+    logo_url: "",
   });
 
   useEffect(() => {
@@ -51,6 +62,7 @@ export default function Settings() {
           telegram_bot_token: data.telegram_bot_token || "",
           telegram_chat_id: data.telegram_chat_id || "",
           enable_expiry_alerts: data.enable_expiry_alerts,
+          logo_url: (data as any).logo_url || "",
         });
       }
     } catch (error: any) {
@@ -70,6 +82,7 @@ export default function Settings() {
         telegram_bot_token: settings.telegram_bot_token || null,
         telegram_chat_id: settings.telegram_chat_id || null,
         enable_expiry_alerts: settings.enable_expiry_alerts,
+        logo_url: settings.logo_url || null,
       };
 
       let error;
@@ -95,6 +108,8 @@ export default function Settings() {
 
       if (error) throw error;
 
+      await refetchAppSettings();
+      
       toast({
         title: t("settings_saved"),
         description: t("settings_saved_description"),
@@ -145,6 +160,59 @@ export default function Settings() {
       });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
+      toast({
+        title: t("error"),
+        description: t("validation_required"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: t("error"),
+        description: t("security_password_mismatch"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      toast({
+        title: t("error"),
+        description: t("validation_password"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: t("security_password_changed"),
+        description: t("security_password_changed_description"),
+      });
+      setPasswordForm({ newPassword: "", confirmPassword: "" });
+    } catch (error: any) {
+      console.error("Error changing password:", error);
+      toast({
+        title: t("error"),
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -252,6 +320,130 @@ export default function Settings() {
               {t("telegram_send_test")}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Branding Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            {t("branding_title")}
+          </CardTitle>
+          <CardDescription>{t("branding_description")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="logo_url">{t("branding_logo_url")}</Label>
+            <div className="flex gap-4">
+              <Input
+                id="logo_url"
+                type="url"
+                placeholder="https://example.com/logo.png"
+                value={settings.logo_url}
+                onChange={(e) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    logo_url: e.target.value,
+                  }))
+                }
+                className="flex-1"
+              />
+              {settings.logo_url && (
+                <div className="w-12 h-12 rounded-lg border border-border overflow-hidden flex items-center justify-center bg-background">
+                  <img 
+                    src={settings.logo_url} 
+                    alt="Logo preview" 
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">{t("branding_logo_hint")}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Security Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            {t("security_title")}
+          </CardTitle>
+          <CardDescription>{t("security_description")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="new_password">{t("security_new_password")}</Label>
+              <div className="relative">
+                <Input
+                  id="new_password"
+                  type={showNewPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={passwordForm.newPassword}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({
+                      ...prev,
+                      newPassword: e.target.value,
+                    }))
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm_password">{t("security_confirm_password")}</Label>
+              <div className="relative">
+                <Input
+                  id="confirm_password"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) =>
+                    setPasswordForm((prev) => ({
+                      ...prev,
+                      confirmPassword: e.target.value,
+                    }))
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Button 
+            onClick={handleChangePassword} 
+            disabled={changingPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+            variant="outline"
+          >
+            {changingPassword ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Lock className="mr-2 h-4 w-4" />
+            )}
+            {t("security_change_password")}
+          </Button>
         </CardContent>
       </Card>
     </div>

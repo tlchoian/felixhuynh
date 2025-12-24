@@ -352,23 +352,27 @@ export default function Dashboard() {
           title={t("dashboard_pending_tasks")}
           value={stats.pendingTasks}
           icon={ClipboardList}
+          href="/tasks"
         />
         <StatCard
           title={t("dashboard_expiring_contracts")}
           value={stats.expiringContracts}
           icon={FileWarning}
           variant={stats.expiringContracts > 0 ? "warning" : "default"}
+          href="/contracts"
         />
         <StatCard
           title={t("dashboard_active_devices")}
           value={stats.activeDevices}
           icon={Server}
           variant="success"
+          href="/network"
         />
         <StatCard
           title={t("dashboard_total_credentials")}
           value={stats.totalCredentials}
           icon={KeyRound}
+          href="/credentials"
         />
       </div>
 
