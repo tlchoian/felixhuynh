@@ -7,7 +7,6 @@ import {
   Flag,
   MoreVertical,
   Loader2,
-  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Task {
   id: string;
@@ -49,30 +49,25 @@ interface Task {
   status: string;
 }
 
-const columns = [
-  { id: "todo", title: "To Do", color: "border-muted-foreground" },
-  { id: "in_progress", title: "In Progress", color: "border-primary" },
-  { id: "pending_vendor", title: "Pending Vendor", color: "border-warning" },
-  { id: "done", title: "Done", color: "border-success" },
-];
-
 const priorityColors: Record<string, string> = {
   High: "bg-destructive/20 text-destructive border-destructive/30",
   Medium: "bg-warning/20 text-warning border-warning/30",
   Low: "bg-muted text-muted-foreground border-muted-foreground/30",
 };
 
-function TaskCard({ task, onStatusChange, onDelete }: { 
+function TaskCard({ task, onStatusChange, onDelete, t }: { 
   task: Task; 
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
+  t: (key: any) => string;
 }) {
   return (
     <div className="glass-card p-4 hover:border-primary/50 transition-colors group">
       <div className="flex items-start justify-between mb-3">
         <span className={`status-badge text-xs ${priorityColors[task.priority]}`}>
           <Flag className="w-3 h-3 mr-1 inline" />
-          {task.priority}
+          {task.priority === "High" ? t("priority_high") : 
+           task.priority === "Medium" ? t("priority_medium") : t("priority_low")}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -81,11 +76,11 @@ function TaskCard({ task, onStatusChange, onDelete }: {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="bg-popover border-border">
-            <DropdownMenuItem onClick={() => onStatusChange(task.id, "todo")}>Move to To Do</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStatusChange(task.id, "in_progress")}>Move to In Progress</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStatusChange(task.id, "pending_vendor")}>Move to Pending Vendor</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStatusChange(task.id, "done")}>Move to Done</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive" onClick={() => onDelete(task.id)}>Delete</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "todo")}>{t("tasks_move_to")} {t("task_todo")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "in_progress")}>{t("tasks_move_to")} {t("task_in_progress")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "pending_vendor")}>{t("tasks_move_to")} {t("task_pending_vendor")}</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onStatusChange(task.id, "done")}>{t("tasks_move_to")} {t("task_done")}</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={() => onDelete(task.id)}>{t("btn_delete")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -110,10 +105,18 @@ function TaskCard({ task, onStatusChange, onDelete }: {
 
 export default function TaskTracker() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const columns = [
+    { id: "todo", title: t("task_todo"), color: "border-muted-foreground" },
+    { id: "in_progress", title: t("task_in_progress"), color: "border-primary" },
+    { id: "pending_vendor", title: t("task_pending_vendor"), color: "border-warning" },
+    { id: "done", title: t("task_done"), color: "border-success" },
+  ];
 
   const [formData, setFormData] = useState({
     title: "",
@@ -147,7 +150,7 @@ export default function TaskTracker() {
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.requester) {
-      toast.error("Please fill in required fields");
+      toast.error(t("validation_required"));
       return;
     }
 
@@ -165,7 +168,7 @@ export default function TaskTracker() {
 
       if (error) throw error;
 
-      toast.success("Task created successfully");
+      toast.success(t("tasks_created"));
       setIsAddModalOpen(false);
       setFormData({ title: "", description: "", priority: "Medium", requester: "", due_date: "", status: "todo" });
       fetchTasks();
@@ -185,7 +188,7 @@ export default function TaskTracker() {
         .eq("id", id);
 
       if (error) throw error;
-      toast.success("Task updated");
+      toast.success(t("tasks_updated"));
       fetchTasks();
     } catch (error) {
       console.error("Error updating task:", error);
@@ -197,7 +200,7 @@ export default function TaskTracker() {
     try {
       const { error } = await supabase.from("tasks").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Task deleted");
+      toast.success(t("tasks_deleted"));
       fetchTasks();
     } catch (error) {
       console.error("Error deleting task:", error);
@@ -222,25 +225,25 @@ export default function TaskTracker() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <ClipboardList className="w-8 h-8 text-primary" />
-            Task Tracker
+            {t("tasks_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">IT Helpdesk Kanban Board</p>
+          <p className="text-muted-foreground mt-1">{t("tasks_subtitle")}</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4 mr-2" />
-              New Task
+              {t("btn_new_task")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Create New Task</DialogTitle>
-              <DialogDescription>Add a new task to your helpdesk board.</DialogDescription>
+              <DialogTitle>{t("tasks_add_title")}</DialogTitle>
+              <DialogDescription>{t("tasks_add_description")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Title *</Label>
+                <Label>{t("tasks_task_title")} *</Label>
                 <Input
                   placeholder="e.g., Fix email server timeout"
                   value={formData.title}
@@ -249,7 +252,7 @@ export default function TaskTracker() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Description</Label>
+                <Label>{t("tasks_description")}</Label>
                 <Textarea
                   placeholder="Additional details..."
                   value={formData.description}
@@ -259,36 +262,36 @@ export default function TaskTracker() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Priority</Label>
+                  <Label>{t("tasks_priority")}</Label>
                   <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
                     <SelectTrigger className="input-field">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="High">High</SelectItem>
-                      <SelectItem value="Medium">Medium</SelectItem>
-                      <SelectItem value="Low">Low</SelectItem>
+                      <SelectItem value="High">{t("priority_high")}</SelectItem>
+                      <SelectItem value="Medium">{t("priority_medium")}</SelectItem>
+                      <SelectItem value="Low">{t("priority_low")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Status</Label>
+                  <Label>{t("tasks_status")}</Label>
                   <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                     <SelectTrigger className="input-field">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="todo">To Do</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="pending_vendor">Pending Vendor</SelectItem>
-                      <SelectItem value="done">Done</SelectItem>
+                      <SelectItem value="todo">{t("task_todo")}</SelectItem>
+                      <SelectItem value="in_progress">{t("task_in_progress")}</SelectItem>
+                      <SelectItem value="pending_vendor">{t("task_pending_vendor")}</SelectItem>
+                      <SelectItem value="done">{t("task_done")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Requester *</Label>
+                  <Label>{t("tasks_requester")} *</Label>
                   <Input
                     placeholder="John Smith"
                     value={formData.requester}
@@ -297,7 +300,7 @@ export default function TaskTracker() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Due Date</Label>
+                  <Label>{t("tasks_due_date")}</Label>
                   <Input
                     type="date"
                     value={formData.due_date}
@@ -308,10 +311,10 @@ export default function TaskTracker() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>{t("btn_cancel")}</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Create Task
+                {t("btn_save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -327,10 +330,10 @@ export default function TaskTracker() {
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">{col.title}</p>
                 <span className={`text-2xl font-bold ${
-                  col.id === 'done' ? 'text-success' :
-                  col.id === 'pending_vendor' ? 'text-warning' :
-                  col.id === 'in_progress' ? 'text-primary' :
-                  'text-foreground'
+                  col.id === "done" ? "text-success" :
+                  col.id === "pending_vendor" ? "text-warning" :
+                  col.id === "in_progress" ? "text-primary" :
+                  "text-foreground"
                 }`}>{count}</span>
               </div>
             </div>
@@ -355,11 +358,12 @@ export default function TaskTracker() {
                   task={task} 
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
+                  t={t}
                 />
               ))}
               {getTasksByStatus(column.id).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground text-sm">
-                  No tasks
+                  {t("tasks_no_tasks")}
                 </div>
               )}
             </div>

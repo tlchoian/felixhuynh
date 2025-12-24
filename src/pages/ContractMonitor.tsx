@@ -42,6 +42,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Contract {
   id: string;
@@ -67,15 +68,6 @@ const typeColors: Record<string, string> = {
   Software: "bg-orange-500/20 text-orange-400 border-orange-500/30",
 };
 
-function getStatusBadge(daysRemaining: number) {
-  if (daysRemaining <= 7) {
-    return { className: "status-danger", label: "Critical" };
-  } else if (daysRemaining <= 30) {
-    return { className: "status-warning", label: "Expiring Soon" };
-  }
-  return { className: "status-success", label: "Active" };
-}
-
 function getDaysRemaining(expiryDate: string): number {
   const today = new Date();
   const expiry = new Date(expiryDate);
@@ -85,6 +77,7 @@ function getDaysRemaining(expiryDate: string): number {
 
 export default function ContractMonitor() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,7 +117,7 @@ export default function ContractMonitor() {
 
   const handleSubmit = async () => {
     if (!formData.asset_name || !formData.provider || !formData.expiry_date) {
-      toast.error("Please fill in all required fields");
+      toast.error(t("validation_required"));
       return;
     }
 
@@ -142,7 +135,7 @@ export default function ContractMonitor() {
 
       if (error) throw error;
 
-      toast.success("Contract added successfully");
+      toast.success(t("contracts_added"));
       setIsAddModalOpen(false);
       setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
       fetchContracts();
@@ -158,12 +151,21 @@ export default function ContractMonitor() {
     try {
       const { error } = await supabase.from("contracts").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Contract deleted");
+      toast.success(t("contracts_deleted"));
       fetchContracts();
     } catch (error) {
       console.error("Error deleting contract:", error);
       toast.error("Failed to delete contract");
     }
+  };
+
+  const getStatusBadge = (daysRemaining: number) => {
+    if (daysRemaining <= 7) {
+      return { className: "status-danger", label: t("contracts_status_critical") };
+    } else if (daysRemaining <= 30) {
+      return { className: "status-warning", label: t("contracts_status_expiring") };
+    }
+    return { className: "status-success", label: t("contracts_status_active") };
   };
 
   const filteredContracts = contracts
@@ -195,25 +197,25 @@ export default function ContractMonitor() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <FileText className="w-8 h-8 text-primary" />
-            Contract & License Monitor
+            {t("contracts_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">Track domains, hosting, SSL certificates, and software licenses</p>
+          <p className="text-muted-foreground mt-1">{t("contracts_subtitle")}</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4 mr-2" />
-              Add Contract
+              {t("btn_add_contract")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Add New Contract</DialogTitle>
-              <DialogDescription>Add a new contract or license to track.</DialogDescription>
+              <DialogTitle>{t("contracts_add_title")}</DialogTitle>
+              <DialogDescription>{t("contracts_add_description")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Asset Name *</Label>
+                <Label>{t("contracts_asset_name")} *</Label>
                 <Input
                   placeholder="e.g., company.com"
                   value={formData.asset_name}
@@ -222,21 +224,21 @@ export default function ContractMonitor() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Type</Label>
+                <Label>{t("contracts_type")}</Label>
                 <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
                   <SelectTrigger className="input-field">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Domain">Domain</SelectItem>
-                    <SelectItem value="Hosting">Hosting</SelectItem>
-                    <SelectItem value="SSL">SSL</SelectItem>
-                    <SelectItem value="Software">Software</SelectItem>
+                    <SelectItem value="Domain">{t("type_domain")}</SelectItem>
+                    <SelectItem value="Hosting">{t("type_hosting")}</SelectItem>
+                    <SelectItem value="SSL">{t("type_ssl")}</SelectItem>
+                    <SelectItem value="Software">{t("type_software")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label>Provider *</Label>
+                <Label>{t("contracts_provider")} *</Label>
                 <Input
                   placeholder="e.g., Namecheap"
                   value={formData.provider}
@@ -245,7 +247,7 @@ export default function ContractMonitor() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Expiry Date *</Label>
+                <Label>{t("contracts_expiry_date")} *</Label>
                 <Input
                   type="date"
                   value={formData.expiry_date}
@@ -255,7 +257,7 @@ export default function ContractMonitor() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Cost</Label>
+                  <Label>{t("contracts_cost")}</Label>
                   <Input
                     type="number"
                     placeholder="0.00"
@@ -265,24 +267,24 @@ export default function ContractMonitor() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Billing Cycle</Label>
+                  <Label>{t("contracts_billing_cycle")}</Label>
                   <Select value={formData.billing_cycle} onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}>
                     <SelectTrigger className="input-field">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="Monthly">Monthly</SelectItem>
-                      <SelectItem value="Yearly">Yearly</SelectItem>
+                      <SelectItem value="Monthly">{t("billing_monthly")}</SelectItem>
+                      <SelectItem value="Yearly">{t("billing_yearly")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>{t("btn_cancel")}</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save Contract
+                {t("btn_save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -298,7 +300,7 @@ export default function ContractMonitor() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
-              <p className="text-xs text-muted-foreground">Total Contracts</p>
+              <p className="text-xs text-muted-foreground">{t("contracts_total")}</p>
             </div>
           </div>
         </div>
@@ -309,7 +311,7 @@ export default function ContractMonitor() {
             </div>
             <div>
               <p className="text-2xl font-bold text-warning">{expiringCount}</p>
-              <p className="text-xs text-muted-foreground">Expiring in 30 Days</p>
+              <p className="text-xs text-muted-foreground">{t("contracts_expiring_30")}</p>
             </div>
           </div>
         </div>
@@ -320,7 +322,7 @@ export default function ContractMonitor() {
             </div>
             <div>
               <p className="text-2xl font-bold text-destructive">{criticalCount}</p>
-              <p className="text-xs text-muted-foreground">Critical (≤7 Days)</p>
+              <p className="text-xs text-muted-foreground">{t("contracts_critical")}</p>
             </div>
           </div>
         </div>
@@ -331,7 +333,7 @@ export default function ContractMonitor() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">${totalMonthlyCost.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">Est. Monthly Cost</p>
+              <p className="text-xs text-muted-foreground">{t("contracts_monthly_cost")}</p>
             </div>
           </div>
         </div>
@@ -342,7 +344,7 @@ export default function ContractMonitor() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name or provider..."
+            placeholder={t("contracts_search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 input-field"
@@ -350,14 +352,14 @@ export default function ContractMonitor() {
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-[180px] input-field">
-            <SelectValue placeholder="Filter by type" />
+            <SelectValue placeholder={t("contracts_filter_type")} />
           </SelectTrigger>
           <SelectContent className="bg-popover border-border">
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="Domain">Domain</SelectItem>
-            <SelectItem value="Hosting">Hosting</SelectItem>
-            <SelectItem value="SSL">SSL</SelectItem>
-            <SelectItem value="Software">Software</SelectItem>
+            <SelectItem value="all">{t("all_types")}</SelectItem>
+            <SelectItem value="Domain">{t("type_domain")}</SelectItem>
+            <SelectItem value="Hosting">{t("type_hosting")}</SelectItem>
+            <SelectItem value="SSL">{t("type_ssl")}</SelectItem>
+            <SelectItem value="Software">{t("type_software")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -367,25 +369,25 @@ export default function ContractMonitor() {
         {filteredContracts.length === 0 ? (
           <div className="p-12 text-center">
             <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No contracts yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Add your first contract to start tracking</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">{t("contracts_no_contracts")}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t("contracts_no_contracts_desc")}</p>
             <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
               <Plus className="w-4 h-4 mr-2" />
-              Add Contract
+              {t("btn_add_contract")}
             </Button>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Asset Name</TableHead>
-                <TableHead className="text-muted-foreground">Type</TableHead>
-                <TableHead className="text-muted-foreground">Provider</TableHead>
-                <TableHead className="text-muted-foreground">Expiry Date</TableHead>
-                <TableHead className="text-muted-foreground">Days Left</TableHead>
-                <TableHead className="text-muted-foreground">Cost</TableHead>
-                <TableHead className="text-muted-foreground">Status</TableHead>
-                <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_asset_name")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_type")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_provider")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_expiry_date")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_days_left")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_cost")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("contracts_status")}</TableHead>
+                <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -410,11 +412,11 @@ export default function ContractMonitor() {
                     <TableCell className="font-mono text-sm text-foreground">{contract.expiry_date}</TableCell>
                     <TableCell>
                       <span className={`font-bold ${
-                        daysRemaining <= 7 ? 'text-destructive' :
-                        daysRemaining <= 30 ? 'text-warning' :
-                        'text-success'
+                        daysRemaining <= 7 ? "text-destructive" :
+                        daysRemaining <= 30 ? "text-warning" :
+                        "text-success"
                       }`}>
-                        {daysRemaining} days
+                        {daysRemaining} {t("contracts_days")}
                       </span>
                     </TableCell>
                     <TableCell className="text-foreground">

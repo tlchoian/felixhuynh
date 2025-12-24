@@ -42,6 +42,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface NetworkDevice {
   id: string;
@@ -80,6 +81,7 @@ const statusStyles: Record<string, string> = {
 
 export default function NetworkIPAM() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -121,7 +123,7 @@ export default function NetworkIPAM() {
 
   const handleSubmit = async () => {
     if (!formData.device_name || !formData.ip_address || !formData.location) {
-      toast.error("Please fill in all required fields");
+      toast.error(t("validation_required"));
       return;
     }
 
@@ -140,7 +142,7 @@ export default function NetworkIPAM() {
 
       if (error) throw error;
 
-      toast.success("Device added successfully");
+      toast.success(t("network_device_added"));
       setIsAddModalOpen(false);
       setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location: "", vlan_id: "1", status: "Online" });
       fetchDevices();
@@ -156,7 +158,7 @@ export default function NetworkIPAM() {
     try {
       const { error } = await supabase.from("network_devices").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Device deleted");
+      toast.success(t("network_device_deleted"));
       fetchDevices();
     } catch (error) {
       console.error("Error deleting device:", error);
@@ -194,25 +196,25 @@ export default function NetworkIPAM() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Network className="w-8 h-8 text-primary" />
-            Network IPAM
+            {t("network_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">IP Address Management across all branches</p>
+          <p className="text-muted-foreground mt-1">{t("network_subtitle")}</p>
         </div>
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
           <DialogTrigger asChild>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="w-4 h-4 mr-2" />
-              Add Device
+              {t("btn_add_device")}
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Add Network Device</DialogTitle>
-              <DialogDescription>Register a new device in your network.</DialogDescription>
+              <DialogTitle>{t("network_add_title")}</DialogTitle>
+              <DialogDescription>{t("network_add_description")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label>Device Name *</Label>
+                <Label>{t("network_device_name")} *</Label>
                 <Input
                   placeholder="e.g., SW-Floor1-01"
                   value={formData.device_name}
@@ -222,7 +224,7 @@ export default function NetworkIPAM() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>IP Address *</Label>
+                  <Label>{t("network_ip_address")} *</Label>
                   <Input
                     placeholder="192.168.1.1"
                     value={formData.ip_address}
@@ -231,24 +233,24 @@ export default function NetworkIPAM() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Type</Label>
+                  <Label>{t("network_type")}</Label>
                   <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
                     <SelectTrigger className="input-field">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="Router">Router</SelectItem>
-                      <SelectItem value="Switch">Switch</SelectItem>
-                      <SelectItem value="AP">Access Point</SelectItem>
-                      <SelectItem value="Server">Server</SelectItem>
-                      <SelectItem value="Camera">Camera</SelectItem>
-                      <SelectItem value="Workstation">Workstation</SelectItem>
+                      <SelectItem value="Router">{t("device_router")}</SelectItem>
+                      <SelectItem value="Switch">{t("device_switch")}</SelectItem>
+                      <SelectItem value="AP">{t("device_ap")}</SelectItem>
+                      <SelectItem value="Server">{t("device_server")}</SelectItem>
+                      <SelectItem value="Camera">{t("device_camera")}</SelectItem>
+                      <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label>MAC Address</Label>
+                <Label>{t("network_mac_address")}</Label>
                 <Input
                   placeholder="00:1A:2B:3C:4D:5E"
                   value={formData.mac_address}
@@ -257,7 +259,7 @@ export default function NetworkIPAM() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Location *</Label>
+                <Label>{t("network_location")} *</Label>
                 <Input
                   placeholder="Branch A - Server Room"
                   value={formData.location}
@@ -267,7 +269,7 @@ export default function NetworkIPAM() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>VLAN ID</Label>
+                  <Label>{t("network_vlan")}</Label>
                   <Input
                     type="number"
                     placeholder="1"
@@ -277,25 +279,25 @@ export default function NetworkIPAM() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Status</Label>
+                  <Label>{t("network_status")}</Label>
                   <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
                     <SelectTrigger className="input-field">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
-                      <SelectItem value="Online">Online</SelectItem>
-                      <SelectItem value="Offline">Offline</SelectItem>
-                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Online">{t("status_online")}</SelectItem>
+                      <SelectItem value="Offline">{t("status_offline")}</SelectItem>
+                      <SelectItem value="Maintenance">{t("status_maintenance")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>{t("btn_cancel")}</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Add Device
+                {t("btn_save")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -311,7 +313,7 @@ export default function NetworkIPAM() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{devices.length}</p>
-              <p className="text-xs text-muted-foreground">Total Devices</p>
+              <p className="text-xs text-muted-foreground">{t("network_total_devices")}</p>
             </div>
           </div>
         </div>
@@ -322,7 +324,7 @@ export default function NetworkIPAM() {
             </div>
             <div>
               <p className="text-2xl font-bold text-success">{onlineCount}</p>
-              <p className="text-xs text-muted-foreground">Online</p>
+              <p className="text-xs text-muted-foreground">{t("network_online")}</p>
             </div>
           </div>
         </div>
@@ -333,7 +335,7 @@ export default function NetworkIPAM() {
             </div>
             <div>
               <p className="text-2xl font-bold text-destructive">{offlineCount}</p>
-              <p className="text-xs text-muted-foreground">Offline</p>
+              <p className="text-xs text-muted-foreground">{t("network_offline")}</p>
             </div>
           </div>
         </div>
@@ -344,7 +346,7 @@ export default function NetworkIPAM() {
             </div>
             <div>
               <p className="text-2xl font-bold text-foreground">{locations.length}</p>
-              <p className="text-xs text-muted-foreground">Locations</p>
+              <p className="text-xs text-muted-foreground">{t("network_locations")}</p>
             </div>
           </div>
         </div>
@@ -355,7 +357,7 @@ export default function NetworkIPAM() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, IP, or MAC..."
+            placeholder={t("network_search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 input-field"
@@ -365,10 +367,10 @@ export default function NetworkIPAM() {
           <Select value={locationFilter} onValueChange={setLocationFilter}>
             <SelectTrigger className="w-[160px] input-field">
               <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Location" />
+              <SelectValue placeholder={t("network_filter_location")} />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="all">{t("network_filter_location")}</SelectItem>
               {locations.map((loc) => (
                 <SelectItem key={loc} value={loc}>{loc}</SelectItem>
               ))}
@@ -376,16 +378,16 @@ export default function NetworkIPAM() {
           </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-[160px] input-field">
-              <SelectValue placeholder="Device Type" />
+              <SelectValue placeholder={t("network_filter_type")} />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Router">Router</SelectItem>
-              <SelectItem value="Switch">Switch</SelectItem>
-              <SelectItem value="AP">Access Point</SelectItem>
-              <SelectItem value="Server">Server</SelectItem>
-              <SelectItem value="Camera">Camera</SelectItem>
-              <SelectItem value="Workstation">Workstation</SelectItem>
+              <SelectItem value="all">{t("network_filter_type")}</SelectItem>
+              <SelectItem value="Router">{t("device_router")}</SelectItem>
+              <SelectItem value="Switch">{t("device_switch")}</SelectItem>
+              <SelectItem value="AP">{t("device_ap")}</SelectItem>
+              <SelectItem value="Server">{t("device_server")}</SelectItem>
+              <SelectItem value="Camera">{t("device_camera")}</SelectItem>
+              <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -396,25 +398,25 @@ export default function NetworkIPAM() {
         {filteredDevices.length === 0 ? (
           <div className="p-12 text-center">
             <Network className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No devices yet</h3>
-            <p className="text-sm text-muted-foreground mb-4">Add your first network device to start tracking</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">{t("network_no_devices")}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t("network_no_devices_desc")}</p>
             <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
               <Plus className="w-4 h-4 mr-2" />
-              Add Device
+              {t("btn_add_device")}
             </Button>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="text-muted-foreground">Device Name</TableHead>
-                <TableHead className="text-muted-foreground">IP Address</TableHead>
-                <TableHead className="text-muted-foreground">Type</TableHead>
-                <TableHead className="text-muted-foreground">MAC Address</TableHead>
-                <TableHead className="text-muted-foreground">Location</TableHead>
-                <TableHead className="text-muted-foreground">VLAN</TableHead>
-                <TableHead className="text-muted-foreground">Status</TableHead>
-                <TableHead className="text-muted-foreground text-right">Actions</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_device_name")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_ip_address")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_type")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_mac_address")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_location")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_vlan")}</TableHead>
+                <TableHead className="text-muted-foreground">{t("network_status")}</TableHead>
+                <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

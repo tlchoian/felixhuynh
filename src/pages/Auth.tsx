@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { Shield, Mail, Lock, User, ArrowRight, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { z } from "zod";
-
-const emailSchema = z.string().email("Please enter a valid email address");
-const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,6 +18,7 @@ export default function Auth() {
   const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
   
   const { signIn, signUp, user } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +29,9 @@ export default function Auth() {
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string; fullName?: string } = {};
+    
+    const emailSchema = z.string().email(t("validation_email"));
+    const passwordSchema = z.string().min(6, t("validation_password"));
     
     try {
       emailSchema.parse(email);
@@ -48,7 +50,7 @@ export default function Auth() {
     }
     
     if (!isLogin && !fullName.trim()) {
-      newErrors.fullName = "Please enter your name";
+      newErrors.fullName = t("validation_name");
     }
     
     setErrors(newErrors);
@@ -67,24 +69,24 @@ export default function Auth() {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email or password");
+            toast.error(t("auth_invalid_credentials"));
           } else {
             toast.error(error.message);
           }
         } else {
-          toast.success("Welcome back!");
+          toast.success(t("auth_welcome"));
           navigate("/");
         }
       } else {
         const { error } = await signUp(email, password, fullName);
         if (error) {
           if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please sign in.");
+            toast.error(t("auth_already_registered"));
           } else {
             toast.error(error.message);
           }
         } else {
-          toast.success("Account created successfully!");
+          toast.success(t("auth_account_created"));
           navigate("/");
         }
       }
@@ -93,28 +95,45 @@ export default function Auth() {
     }
   };
 
+  const toggleLanguage = () => {
+    setLanguage(language === "vi" ? "en" : "vi");
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {/* Language Toggle */}
+      <div className="absolute top-4 right-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleLanguage}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Globe className="w-4 h-4 mr-2" />
+          {language === "vi" ? "🇻🇳 VI" : "🇬🇧 EN"}
+        </Button>
+      </div>
+
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4 glow-primary">
             <Shield className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">IT Omni</h1>
-          <p className="text-muted-foreground">Management System</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("app_name")}</h1>
+          <p className="text-muted-foreground">{t("app_subtitle")}</p>
         </div>
 
         {/* Auth Card */}
         <div className="glass-card p-8">
           <h2 className="text-xl font-semibold text-foreground mb-6">
-            {isLogin ? "Sign in to your account" : "Create your account"}
+            {isLogin ? t("auth_sign_in_title") : t("auth_sign_up_title")}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName">{t("auth_full_name")}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -134,7 +153,7 @@ export default function Auth() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth_email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -153,7 +172,7 @@ export default function Auth() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("auth_password")}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -181,13 +200,13 @@ export default function Auth() {
               ) : (
                 <ArrowRight className="w-4 h-4 mr-2" />
               )}
-              {isLogin ? "Sign In" : "Create Account"}
+              {isLogin ? t("btn_sign_in") : t("btn_create_account")}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+              {isLogin ? t("auth_no_account") : t("auth_have_account")}{" "}
               <button
                 type="button"
                 onClick={() => {
@@ -196,7 +215,7 @@ export default function Auth() {
                 }}
                 className="text-primary hover:underline font-medium"
               >
-                {isLogin ? "Sign up" : "Sign in"}
+                {isLogin ? t("btn_sign_up") : t("btn_sign_in")}
               </button>
             </p>
           </div>
@@ -205,7 +224,7 @@ export default function Auth() {
         {/* Security Notice */}
         <div className="mt-6 text-center">
           <p className="text-xs text-muted-foreground">
-            🔒 Secured with end-to-end encryption
+            🔒 {t("auth_secured")}
           </p>
         </div>
       </div>
