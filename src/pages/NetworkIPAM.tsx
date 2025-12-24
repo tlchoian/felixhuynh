@@ -15,6 +15,7 @@ import {
   GitBranch,
   Upload,
   Pencil,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,13 @@ import { useActivityLog } from "@/hooks/useActivityLog";
 import { NetworkTopology } from "@/components/network/NetworkTopology";
 import { CsvImportModal } from "@/components/CsvImportModal";
 
+interface Location {
+  id: string;
+  name: string;
+  address: string | null;
+  description: string | null;
+}
+
 interface NetworkDevice {
   id: string;
   device_name: string;
@@ -59,6 +67,7 @@ interface NetworkDevice {
   type: string;
   mac_address: string | null;
   location: string;
+  location_id: string | null;
   vlan_id: number | null;
   status: string;
   uplink_device_id: string | null;
@@ -93,9 +102,10 @@ export default function NetworkIPAM() {
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [locationFilter, setLocationFilter] = useState<string>("all");
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -108,7 +118,7 @@ export default function NetworkIPAM() {
     ip_address: "",
     type: "Workstation",
     mac_address: "",
-    location: "",
+    location_id: "",
     vlan_id: "1",
     status: "Online",
     uplink_device_id: "",
@@ -119,11 +129,25 @@ export default function NetworkIPAM() {
     ip_address: "",
     type: "Workstation",
     mac_address: "",
-    location: "",
+    location_id: "",
     vlan_id: "1",
     status: "Online",
     uplink_device_id: "",
   });
+
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("locations")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setLocations(data || []);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+    }
+  };
 
   const fetchDevices = async () => {
     try {
@@ -143,24 +167,26 @@ export default function NetworkIPAM() {
   };
 
   useEffect(() => {
-    fetchDevices();
+    Promise.all([fetchLocations(), fetchDevices()]);
   }, []);
 
   const handleSubmit = async () => {
-    if (!formData.device_name || !formData.ip_address || !formData.location) {
+    if (!formData.device_name || !formData.ip_address || !formData.location_id) {
       toast.error(t("validation_required"));
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const selectedLocation = locations.find(l => l.id === formData.location_id);
       const { error } = await supabase.from("network_devices").insert({
         user_id: user?.id,
         device_name: formData.device_name,
         ip_address: formData.ip_address,
         type: formData.type,
         mac_address: formData.mac_address || null,
-        location: formData.location,
+        location: selectedLocation?.name || "",
+        location_id: formData.location_id,
         vlan_id: parseInt(formData.vlan_id) || 1,
         status: formData.status,
         uplink_device_id: formData.uplink_device_id || null,
@@ -171,7 +197,7 @@ export default function NetworkIPAM() {
       await logActivity("CREATE", "Device", `${t("logs_device_added")}: ${formData.device_name} (${formData.ip_address})`);
       toast.success(t("network_device_added"));
       setIsAddModalOpen(false);
-      setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location: "", vlan_id: "1", status: "Online", uplink_device_id: "" });
+      setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location_id: "", vlan_id: "1", status: "Online", uplink_device_id: "" });
       fetchDevices();
     } catch (error) {
       console.error("Error adding device:", error);
@@ -195,18 +221,28 @@ export default function NetworkIPAM() {
   };
 
   const handleCsvImport = async (data: Record<string, string>[]) => {
-    const devicesToInsert = data.map((row) => ({
-      user_id: user?.id,
-      device_name: row.device_name || row["Device Name"] || "",
-      ip_address: row.ip_address || row["IP Address"] || "",
-      type: row.type || row["Type"] || "Workstation",
-      mac_address: row.mac_address || row["MAC Address"] || null,
-      location: row.location || row["Location"] || "",
-      vlan_id: parseInt(row.vlan_id || row["VLAN"] || "1") || 1,
-      status: row.status || row["Status"] || "Online",
-    }));
+    const devicesToInsert = data.map((row) => {
+      const locationName = row.location || row["Location"] || "";
+      const matchedLocation = locations.find(l => 
+        l.name.toLowerCase() === locationName.toLowerCase() ||
+        l.name.toLowerCase().includes(locationName.toLowerCase()) ||
+        locationName.toLowerCase().includes(l.name.toLowerCase())
+      );
+      
+      return {
+        user_id: user?.id,
+        device_name: row.device_name || row["Device Name"] || "",
+        ip_address: row.ip_address || row["IP Address"] || "",
+        type: row.type || row["Type"] || "Workstation",
+        mac_address: row.mac_address || row["MAC Address"] || null,
+        location: matchedLocation?.name || locationName,
+        location_id: matchedLocation?.id || null,
+        vlan_id: parseInt(row.vlan_id || row["VLAN"] || "1") || 1,
+        status: row.status || row["Status"] || "Online",
+      };
+    });
 
-    const validDevices = devicesToInsert.filter(d => d.device_name && d.ip_address && d.location);
+    const validDevices = devicesToInsert.filter(d => d.device_name && d.ip_address);
     
     if (validDevices.length === 0) {
       throw new Error("No valid devices found");
@@ -226,7 +262,7 @@ export default function NetworkIPAM() {
       ip_address: device.ip_address,
       type: device.type,
       mac_address: device.mac_address || "",
-      location: device.location,
+      location_id: device.location_id || "",
       vlan_id: device.vlan_id?.toString() || "1",
       status: device.status,
       uplink_device_id: device.uplink_device_id || "",
@@ -235,13 +271,14 @@ export default function NetworkIPAM() {
   };
 
   const handleEditSubmit = async () => {
-    if (!editingDevice || !editFormData.device_name || !editFormData.ip_address || !editFormData.location) {
+    if (!editingDevice || !editFormData.device_name || !editFormData.ip_address || !editFormData.location_id) {
       toast.error(t("validation_required"));
       return;
     }
 
     setIsSubmitting(true);
     try {
+      const selectedLocation = locations.find(l => l.id === editFormData.location_id);
       const { error } = await supabase
         .from("network_devices")
         .update({
@@ -249,7 +286,8 @@ export default function NetworkIPAM() {
           ip_address: editFormData.ip_address,
           type: editFormData.type,
           mac_address: editFormData.mac_address || null,
-          location: editFormData.location,
+          location: selectedLocation?.name || "",
+          location_id: editFormData.location_id,
           vlan_id: parseInt(editFormData.vlan_id) || 1,
           status: editFormData.status,
           uplink_device_id: editFormData.uplink_device_id || null,
@@ -271,8 +309,7 @@ export default function NetworkIPAM() {
     }
   };
 
-  const locations = [...new Set(devices.map((d) => d.location))];
-
+  // Filter devices based on selected location, search, and type
   const filteredDevices = devices
     .filter(
       (device) =>
@@ -280,16 +317,29 @@ export default function NetworkIPAM() {
         device.ip_address.includes(searchQuery) ||
         (device.mac_address && device.mac_address.toLowerCase().includes(searchQuery.toLowerCase()))
     )
-    .filter((device) => locationFilter === "all" || device.location === locationFilter)
+    .filter((device) => selectedLocationId === "all" || device.location_id === selectedLocationId)
     .filter((device) => typeFilter === "all" || device.type === typeFilter);
 
-  const onlineCount = devices.filter((d) => d.status === "Online").length;
-  const offlineCount = devices.filter((d) => d.status === "Offline").length;
+  const onlineCount = filteredDevices.filter((d) => d.status === "Online").length;
+  const offlineCount = filteredDevices.filter((d) => d.status === "Offline").length;
 
   // Get available uplink devices (exclude the current device if editing)
   const availableUplinkDevices = devices.filter(d => 
     ["Router", "Switch", "AP", "Server"].includes(d.type)
   );
+
+  // Get device count by location for tabs
+  const getLocationDeviceCount = (locationId: string) => {
+    if (locationId === "all") return devices.length;
+    return devices.filter(d => d.location_id === locationId).length;
+  };
+
+  // Get location name by id
+  const getLocationName = (locationId: string | null) => {
+    if (!locationId) return "-";
+    const location = locations.find(l => l.id === locationId);
+    return location?.name || "-";
+  };
 
   if (loading) {
     return (
@@ -375,12 +425,21 @@ export default function NetworkIPAM() {
               </div>
               <div className="grid gap-2">
                 <Label>{t("network_location")} *</Label>
-                <Input
-                  placeholder="Branch A - Server Room"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="input-field"
-                />
+                <Select value={formData.location_id} onValueChange={(value) => setFormData({ ...formData, location_id: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue placeholder="Chọn chi nhánh" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          {loc.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -451,6 +510,31 @@ export default function NetworkIPAM() {
         description={t("csv_import_description")}
       />
 
+      {/* Location Tabs */}
+      <div className="glass-card p-2 overflow-x-auto">
+        <Tabs value={selectedLocationId} onValueChange={setSelectedLocationId}>
+          <TabsList className="bg-transparent h-auto flex-wrap gap-1">
+            <TabsTrigger 
+              value="all" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg"
+            >
+              <MapPin className="w-4 h-4 mr-2" />
+              Tất cả ({getLocationDeviceCount("all")})
+            </TabsTrigger>
+            {locations.map((loc) => (
+              <TabsTrigger 
+                key={loc.id} 
+                value={loc.id}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-lg"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                {loc.name} ({getLocationDeviceCount(loc.id)})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="glass-card p-4">
@@ -459,7 +543,7 @@ export default function NetworkIPAM() {
               <Network className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{devices.length}</p>
+              <p className="text-2xl font-bold text-foreground">{filteredDevices.length}</p>
               <p className="text-xs text-muted-foreground">{t("network_total_devices")}</p>
             </div>
           </div>
@@ -512,20 +596,9 @@ export default function NetworkIPAM() {
             />
           </div>
           <div className="flex gap-2">
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[160px] input-field">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder={t("network_filter_location")} />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="all">{t("network_filter_location")}</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-[160px] input-field">
+                <Filter className="w-4 h-4 mr-2" />
                 <SelectValue placeholder={t("network_filter_type")} />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
@@ -606,7 +679,12 @@ export default function NetworkIPAM() {
                         </span>
                       </TableCell>
                       <TableCell className="font-mono text-sm text-muted-foreground">{device.mac_address || "-"}</TableCell>
-                      <TableCell className="text-foreground">{device.location}</TableCell>
+                      <TableCell className="text-foreground">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-muted-foreground" />
+                          {getLocationName(device.location_id) || device.location}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{device.vlan_id}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {uplinkDevice ? (
@@ -704,12 +782,21 @@ export default function NetworkIPAM() {
             </div>
             <div className="grid gap-2">
               <Label>{t("network_location")} *</Label>
-              <Input
-                placeholder="Branch A - Server Room"
-                value={editFormData.location}
-                onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
-                className="input-field"
-              />
+              <Select value={editFormData.location_id} onValueChange={(value) => setEditFormData({ ...editFormData, location_id: value })}>
+                <SelectTrigger className="input-field">
+                  <SelectValue placeholder="Chọn chi nhánh" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground" />
+                        {loc.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

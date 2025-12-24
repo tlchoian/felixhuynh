@@ -155,6 +155,33 @@ export type Database = {
         }
         Relationships: []
       }
+      locations: {
+        Row: {
+          address: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       network_devices: {
         Row: {
           created_at: string
@@ -162,6 +189,7 @@ export type Database = {
           id: string
           ip_address: string
           location: string
+          location_id: string | null
           mac_address: string | null
           notes: string | null
           status: string
@@ -177,6 +205,7 @@ export type Database = {
           id?: string
           ip_address: string
           location: string
+          location_id?: string | null
           mac_address?: string | null
           notes?: string | null
           status?: string
@@ -192,6 +221,7 @@ export type Database = {
           id?: string
           ip_address?: string
           location?: string
+          location_id?: string | null
           mac_address?: string | null
           notes?: string | null
           status?: string
@@ -202,6 +232,13 @@ export type Database = {
           vlan_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "network_devices_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "network_devices_uplink_device_id_fkey"
             columns: ["uplink_device_id"]
