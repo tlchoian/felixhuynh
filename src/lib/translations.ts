@@ -179,6 +179,10 @@ export const translations = {
     network_no_devices_desc: "Add your first network device to start tracking",
     network_device_added: "Device added successfully",
     network_device_deleted: "Device deleted",
+    network_uplink_device: "Connects to",
+    network_uplink_none: "None (Root Device)",
+    network_view_list: "List View",
+    network_view_topology: "Topology View",
     
     // Device Types
     device_router: "Router",
@@ -441,6 +445,10 @@ export const translations = {
     network_no_devices_desc: "Thêm thiết bị mạng đầu tiên để bắt đầu",
     network_device_added: "Thêm thiết bị thành công",
     network_device_deleted: "Đã xóa thiết bị",
+    network_uplink_device: "Kết nối vào thiết bị",
+    network_uplink_none: "Không có (Thiết bị gốc)",
+    network_view_list: "Danh sách",
+    network_view_topology: "Sơ đồ",
     
     // Device Types
     device_router: "Bộ Định Tuyến",

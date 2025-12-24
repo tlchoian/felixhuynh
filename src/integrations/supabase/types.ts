@@ -137,6 +137,7 @@ export type Database = {
           status: string
           type: string
           updated_at: string
+          uplink_device_id: string | null
           user_id: string
           vlan_id: number | null
         }
@@ -151,6 +152,7 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string
+          uplink_device_id?: string | null
           user_id: string
           vlan_id?: number | null
         }
@@ -165,10 +167,19 @@ export type Database = {
           status?: string
           type?: string
           updated_at?: string
+          uplink_device_id?: string | null
           user_id?: string
           vlan_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "network_devices_uplink_device_id_fkey"
+            columns: ["uplink_device_id"]
+            isOneToOne: false
+            referencedRelation: "network_devices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
