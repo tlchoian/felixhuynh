@@ -14,12 +14,14 @@ import {
   Globe,
   History,
   Settings,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
 
 export function AppSidebar() {
@@ -27,6 +29,7 @@ export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { isAdmin } = useUserRole();
 
   const navItems = [
     { icon: LayoutDashboard, label: t("nav_dashboard"), path: "/" },
@@ -37,6 +40,8 @@ export function AppSidebar() {
     { icon: BookOpen, label: t("nav_wiki"), path: "/wiki" },
     { icon: History, label: t("nav_activity_logs"), path: "/activity-logs" },
     { icon: Settings, label: t("nav_settings"), path: "/settings" },
+    // Admin-only item
+    ...(isAdmin ? [{ icon: Users, label: t("nav_user_manager"), path: "/users" }] : []),
   ];
 
   const handleSignOut = async () => {
