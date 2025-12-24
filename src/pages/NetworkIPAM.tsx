@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 interface NetworkDevice {
   id: string;
@@ -82,6 +83,7 @@ const statusStyles: Record<string, string> = {
 export default function NetworkIPAM() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { logActivity } = useActivityLog();
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,6 +144,7 @@ export default function NetworkIPAM() {
 
       if (error) throw error;
 
+      await logActivity("CREATE", "Device", `${t("logs_device_added")}: ${formData.device_name} (${formData.ip_address})`);
       toast.success(t("network_device_added"));
       setIsAddModalOpen(false);
       setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location: "", vlan_id: "1", status: "Online" });
@@ -154,10 +157,11 @@ export default function NetworkIPAM() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, deviceName: string) => {
     try {
       const { error } = await supabase.from("network_devices").delete().eq("id", id);
       if (error) throw error;
+      await logActivity("DELETE", "Device", `${t("logs_device_deleted")}: ${deviceName}`);
       toast.success(t("network_device_deleted"));
       fetchDevices();
     } catch (error) {
@@ -458,7 +462,7 @@ export default function NetworkIPAM() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(device.id)}
+                        onClick={() => handleDelete(device.id, device.device_name)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

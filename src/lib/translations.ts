@@ -13,6 +13,23 @@ export const translations = {
     nav_network: "Network IPAM",
     nav_tasks: "Task Tracker",
     nav_wiki: "Tech Wiki",
+    nav_activity_logs: "Activity Logs",
+    
+    // Activity Logs
+    logs_subtitle: "Track all user actions and changes",
+    logs_no_logs: "No activity logs yet",
+    logs_no_logs_desc: "Actions will be logged automatically when you add, edit, or delete items",
+    logs_by: "by",
+    logs_just_now: "just now",
+    logs_minutes_ago: "minutes ago",
+    logs_hours_ago: "hours ago",
+    logs_days_ago: "days ago",
+    logs_credential_added: "Added credential",
+    logs_credential_deleted: "Deleted credential",
+    logs_contract_added: "Added contract",
+    logs_contract_deleted: "Deleted contract",
+    logs_device_added: "Added network device",
+    logs_device_deleted: "Deleted network device",
     
     // Common Actions
     btn_add: "Add New",
@@ -258,6 +275,23 @@ export const translations = {
     nav_network: "Quản Lý IP",
     nav_tasks: "Theo Dõi Công Việc",
     nav_wiki: "Wiki Kỹ Thuật",
+    nav_activity_logs: "Nhật Ký Hoạt Động",
+    
+    // Activity Logs
+    logs_subtitle: "Theo dõi tất cả hành động và thay đổi của người dùng",
+    logs_no_logs: "Chưa có nhật ký hoạt động",
+    logs_no_logs_desc: "Các hành động sẽ được ghi lại tự động khi bạn thêm, sửa hoặc xóa mục",
+    logs_by: "bởi",
+    logs_just_now: "vừa xong",
+    logs_minutes_ago: "phút trước",
+    logs_hours_ago: "giờ trước",
+    logs_days_ago: "ngày trước",
+    logs_credential_added: "Đã thêm thông tin đăng nhập",
+    logs_credential_deleted: "Đã xóa thông tin đăng nhập",
+    logs_contract_added: "Đã thêm hợp đồng",
+    logs_contract_deleted: "Đã xóa hợp đồng",
+    logs_device_added: "Đã thêm thiết bị mạng",
+    logs_device_deleted: "Đã xóa thiết bị mạng",
     
     // Common Actions
     btn_add: "Thêm Mới",

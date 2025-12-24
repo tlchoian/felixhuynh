@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 interface Contract {
   id: string;
@@ -78,6 +79,7 @@ function getDaysRemaining(expiryDate: string): number {
 export default function ContractMonitor() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { logActivity } = useActivityLog();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,6 +137,7 @@ export default function ContractMonitor() {
 
       if (error) throw error;
 
+      await logActivity("CREATE", "Contract", `${t("logs_contract_added")}: ${formData.asset_name} (${formData.type})`);
       toast.success(t("contracts_added"));
       setIsAddModalOpen(false);
       setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
@@ -147,10 +150,11 @@ export default function ContractMonitor() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, assetName: string) => {
     try {
       const { error } = await supabase.from("contracts").delete().eq("id", id);
       if (error) throw error;
+      await logActivity("DELETE", "Contract", `${t("logs_contract_deleted")}: ${assetName}`);
       toast.success(t("contracts_deleted"));
       fetchContracts();
     } catch (error) {
@@ -432,7 +436,7 @@ export default function ContractMonitor() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(contract.id)}
+                        onClick={() => handleDelete(contract.id, contract.asset_name)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

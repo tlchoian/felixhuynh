@@ -12,6 +12,7 @@ import {
   LogOut,
   User,
   Globe,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -33,6 +34,7 @@ export function AppSidebar() {
     { icon: Network, label: t("nav_network"), path: "/network" },
     { icon: ClipboardList, label: t("nav_tasks"), path: "/tasks" },
     { icon: BookOpen, label: t("nav_wiki"), path: "/wiki" },
+    { icon: History, label: t("nav_activity_logs"), path: "/activity-logs" },
   ];
 
   const handleSignOut = async () => {

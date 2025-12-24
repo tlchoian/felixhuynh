@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 interface Credential {
   id: string;
@@ -63,6 +64,7 @@ const categoryColors: Record<string, string> = {
 export default function CredentialVault() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { logActivity } = useActivityLog();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
@@ -118,6 +120,7 @@ export default function CredentialVault() {
 
       if (error) throw error;
 
+      await logActivity("CREATE", "Credential", `${t("logs_credential_added")}: ${formData.service_name}`);
       toast.success(t("vault_credential_added"));
       setIsAddModalOpen(false);
       setFormData({ service_name: "", url: "", username: "", password: "", category: "Cloud" });
@@ -130,10 +133,11 @@ export default function CredentialVault() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, serviceName: string) => {
     try {
       const { error } = await supabase.from("credentials").delete().eq("id", id);
       if (error) throw error;
+      await logActivity("DELETE", "Credential", `${t("logs_credential_deleted")}: ${serviceName}`);
       toast.success(t("vault_credential_deleted"));
       fetchCredentials();
     } catch (error) {
@@ -391,7 +395,7 @@ export default function CredentialVault() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(cred.id)}
+                      onClick={() => handleDelete(cred.id, cred.service_name)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
