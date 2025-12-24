@@ -267,6 +267,24 @@ export const translations = {
     error: "Error",
     nav_settings: "Settings",
 
+    // CSV Import
+    csv_import_button: "Import CSV",
+    csv_import_title: "Bulk Import from CSV",
+    csv_import_description: "Upload a CSV file to import multiple records at once",
+    csv_download_template: "Download Template",
+    csv_template_description: "Get the CSV template with correct column headers",
+    csv_download: "Download",
+    csv_select_file: "Select CSV File",
+    csv_preview: "Preview",
+    csv_rows: "rows",
+    csv_import: "Import",
+    csv_template_downloaded: "Template downloaded",
+    csv_invalid_file: "Please select a valid CSV file",
+    csv_parse_error: "Error parsing CSV file",
+    csv_no_data: "No data found in CSV file",
+    csv_import_success: "Successfully imported {count} records",
+    csv_import_error: "Error importing data",
+
     // Misc
     loading: "Loading...",
     all_types: "All Types",
@@ -547,6 +565,24 @@ export const translations = {
     settings_saved_description: "Cài đặt của bạn đã được lưu thành công",
     error: "Lỗi",
     nav_settings: "Cài Đặt",
+
+    // CSV Import
+    csv_import_button: "Nhập từ CSV",
+    csv_import_title: "Nhập Hàng Loạt từ CSV",
+    csv_import_description: "Tải lên file CSV để nhập nhiều bản ghi cùng lúc",
+    csv_download_template: "Tải Template",
+    csv_template_description: "Lấy template CSV với các cột đúng định dạng",
+    csv_download: "Tải",
+    csv_select_file: "Chọn File CSV",
+    csv_preview: "Xem trước",
+    csv_rows: "dòng",
+    csv_import: "Nhập",
+    csv_template_downloaded: "Đã tải template",
+    csv_invalid_file: "Vui lòng chọn file CSV hợp lệ",
+    csv_parse_error: "Lỗi khi đọc file CSV",
+    csv_no_data: "Không tìm thấy dữ liệu trong file CSV",
+    csv_import_success: "Đã nhập thành công {count} bản ghi",
+    csv_import_error: "Lỗi khi nhập dữ liệu",
 
     // Misc
     loading: "Đang tải...",

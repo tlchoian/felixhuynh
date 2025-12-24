@@ -13,6 +13,7 @@ import {
   Trash2,
   List,
   GitBranch,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { NetworkTopology } from "@/components/network/NetworkTopology";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 interface NetworkDevice {
   id: string;
@@ -97,6 +99,7 @@ export default function NetworkIPAM() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "topology">("list");
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     device_name: "",
@@ -178,6 +181,31 @@ export default function NetworkIPAM() {
     }
   };
 
+  const handleCsvImport = async (data: Record<string, string>[]) => {
+    const devicesToInsert = data.map((row) => ({
+      user_id: user?.id,
+      device_name: row.device_name || row["Device Name"] || "",
+      ip_address: row.ip_address || row["IP Address"] || "",
+      type: row.type || row["Type"] || "Workstation",
+      mac_address: row.mac_address || row["MAC Address"] || null,
+      location: row.location || row["Location"] || "",
+      vlan_id: parseInt(row.vlan_id || row["VLAN"] || "1") || 1,
+      status: row.status || row["Status"] || "Online",
+    }));
+
+    const validDevices = devicesToInsert.filter(d => d.device_name && d.ip_address && d.location);
+    
+    if (validDevices.length === 0) {
+      throw new Error("No valid devices found");
+    }
+
+    const { error } = await supabase.from("network_devices").insert(validDevices);
+    if (error) throw error;
+
+    await logActivity("CREATE", "Device", `Imported ${validDevices.length} devices from CSV`);
+    fetchDevices();
+  };
+
   const locations = [...new Set(devices.map((d) => d.location))];
 
   const filteredDevices = devices
@@ -217,13 +245,18 @@ export default function NetworkIPAM() {
           </h1>
           <p className="text-muted-foreground mt-1">{t("network_subtitle")}</p>
         </div>
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("btn_add_device")}
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            {t("csv_import_button")}
+          </Button>
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("btn_add_device")}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("network_add_title")}</DialogTitle>
@@ -339,7 +372,19 @@ export default function NetworkIPAM() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        templateColumns={["device_name", "ip_address", "type", "mac_address", "location", "vlan_id", "status"]}
+        templateFileName="network_devices"
+        onImport={handleCsvImport}
+        title={t("csv_import_title")}
+        description={t("csv_import_description")}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
