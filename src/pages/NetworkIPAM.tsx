@@ -11,6 +11,8 @@ import {
   Filter,
   Loader2,
   Trash2,
+  List,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,11 +41,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { NetworkTopology } from "@/components/network/NetworkTopology";
 
 interface NetworkDevice {
   id: string;
@@ -54,6 +58,7 @@ interface NetworkDevice {
   location: string;
   vlan_id: number | null;
   status: string;
+  uplink_device_id: string | null;
 }
 
 const deviceIcons: Record<string, any> = {
@@ -91,6 +96,7 @@ export default function NetworkIPAM() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "topology">("list");
 
   const [formData, setFormData] = useState({
     device_name: "",
@@ -100,6 +106,7 @@ export default function NetworkIPAM() {
     location: "",
     vlan_id: "1",
     status: "Online",
+    uplink_device_id: "",
   });
 
   const fetchDevices = async () => {
@@ -140,6 +147,7 @@ export default function NetworkIPAM() {
         location: formData.location,
         vlan_id: parseInt(formData.vlan_id) || 1,
         status: formData.status,
+        uplink_device_id: formData.uplink_device_id || null,
       });
 
       if (error) throw error;
@@ -147,7 +155,7 @@ export default function NetworkIPAM() {
       await logActivity("CREATE", "Device", `${t("logs_device_added")}: ${formData.device_name} (${formData.ip_address})`);
       toast.success(t("network_device_added"));
       setIsAddModalOpen(false);
-      setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location: "", vlan_id: "1", status: "Online" });
+      setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location: "", vlan_id: "1", status: "Online", uplink_device_id: "" });
       fetchDevices();
     } catch (error) {
       console.error("Error adding device:", error);
@@ -185,6 +193,11 @@ export default function NetworkIPAM() {
   const onlineCount = devices.filter((d) => d.status === "Online").length;
   const offlineCount = devices.filter((d) => d.status === "Offline").length;
 
+  // Get available uplink devices (exclude the current device if editing)
+  const availableUplinkDevices = devices.filter(d => 
+    ["Router", "Switch", "AP", "Server"].includes(d.type)
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -211,7 +224,7 @@ export default function NetworkIPAM() {
               {t("btn_add_device")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("network_add_title")}</DialogTitle>
               <DialogDescription>{t("network_add_description")}</DialogDescription>
@@ -296,6 +309,26 @@ export default function NetworkIPAM() {
                   </Select>
                 </div>
               </div>
+              {/* Uplink Device Dropdown */}
+              <div className="grid gap-2">
+                <Label>{t("network_uplink_device")}</Label>
+                <Select 
+                  value={formData.uplink_device_id} 
+                  onValueChange={(value) => setFormData({ ...formData, uplink_device_id: value === "none" ? "" : value })}
+                >
+                  <SelectTrigger className="input-field">
+                    <SelectValue placeholder={t("network_uplink_none")} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="none">{t("network_uplink_none")}</SelectItem>
+                    {availableUplinkDevices.map((device) => (
+                      <SelectItem key={device.id} value={device.id}>
+                        {device.device_name} ({device.ip_address})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>{t("btn_cancel")}</Button>
@@ -356,124 +389,145 @@ export default function NetworkIPAM() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={t("network_search")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 input-field"
-          />
+      {/* View Toggle & Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder={t("network_search")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 input-field"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[160px] input-field">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder={t("network_filter_location")} />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="all">{t("network_filter_location")}</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[160px] input-field">
+                <SelectValue placeholder={t("network_filter_type")} />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                <SelectItem value="all">{t("network_filter_type")}</SelectItem>
+                <SelectItem value="Router">{t("device_router")}</SelectItem>
+                <SelectItem value="Switch">{t("device_switch")}</SelectItem>
+                <SelectItem value="AP">{t("device_ap")}</SelectItem>
+                <SelectItem value="Server">{t("device_server")}</SelectItem>
+                <SelectItem value="Camera">{t("device_camera")}</SelectItem>
+                <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Select value={locationFilter} onValueChange={setLocationFilter}>
-            <SelectTrigger className="w-[160px] input-field">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder={t("network_filter_location")} />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">{t("network_filter_location")}</SelectItem>
-              {locations.map((loc) => (
-                <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[160px] input-field">
-              <SelectValue placeholder={t("network_filter_type")} />
-            </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">{t("network_filter_type")}</SelectItem>
-              <SelectItem value="Router">{t("device_router")}</SelectItem>
-              <SelectItem value="Switch">{t("device_switch")}</SelectItem>
-              <SelectItem value="AP">{t("device_ap")}</SelectItem>
-              <SelectItem value="Server">{t("device_server")}</SelectItem>
-              <SelectItem value="Camera">{t("device_camera")}</SelectItem>
-              <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        
+        {/* View Toggle */}
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "list" | "topology")} className="shrink-0">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="list" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <List className="w-4 h-4" />
+              {t("network_view_list")}
+            </TabsTrigger>
+            <TabsTrigger value="topology" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <GitBranch className="w-4 h-4" />
+              {t("network_view_topology")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {/* Devices Table */}
-      <div className="glass-card overflow-hidden">
-        {filteredDevices.length === 0 ? (
-          <div className="p-12 text-center">
-            <Network className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">{t("network_no_devices")}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t("network_no_devices_desc")}</p>
-            <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("btn_add_device")}
-            </Button>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="text-muted-foreground">{t("network_device_name")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("network_ip_address")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("network_type")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("network_mac_address")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("network_location")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("network_vlan")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("network_status")}</TableHead>
-                <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDevices.map((device) => {
-                const DeviceIcon = deviceIcons[device.type] || Monitor;
-                return (
-                  <TableRow key={device.id} className="table-row">
-                    <TableCell className="font-medium text-foreground">
-                      <div className="flex items-center gap-2">
-                        <DeviceIcon className="w-4 h-4 text-muted-foreground" />
-                        {device.device_name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-primary">{device.ip_address}</TableCell>
-                    <TableCell>
-                      <span className={`status-badge ${deviceColors[device.type] || ""}`}>
-                        {device.type}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-muted-foreground uppercase">
-                      {device.mac_address || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{device.location}</TableCell>
-                    <TableCell className="font-mono text-sm text-foreground">{device.vlan_id}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${
-                          device.status === "Online" ? "bg-success animate-pulse" :
-                          device.status === "Offline" ? "bg-destructive" :
-                          "bg-warning"
-                        }`} />
-                        <span className={`status-badge ${statusStyles[device.status] || ""}`}>
-                          {device.status}
+      {/* Content based on view mode */}
+      {viewMode === "topology" ? (
+        <NetworkTopology devices={filteredDevices} />
+      ) : (
+        /* Devices Table */
+        <div className="glass-card overflow-hidden">
+          {filteredDevices.length === 0 ? (
+            <div className="p-12 text-center">
+              <Network className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">{t("network_no_devices")}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{t("network_no_devices_desc")}</p>
+              <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("btn_add_device")}
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/50 hover:bg-transparent">
+                  <TableHead className="text-muted-foreground">{t("network_device_name")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_ip_address")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_type")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_mac_address")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_location")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_vlan")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_uplink_device")}</TableHead>
+                  <TableHead className="text-muted-foreground">{t("network_status")}</TableHead>
+                  <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDevices.map((device) => {
+                  const DeviceIcon = deviceIcons[device.type] || Monitor;
+                  const uplinkDevice = devices.find(d => d.id === device.uplink_device_id);
+                  return (
+                    <TableRow key={device.id} className="table-row">
+                      <TableCell className="font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <DeviceIcon className="w-4 h-4 text-muted-foreground" />
+                          {device.device_name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-primary">{device.ip_address}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs border ${deviceColors[device.type]}`}>
+                          {t(`device_${device.type.toLowerCase()}` as any) || device.type}
                         </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(device.id, device.device_name)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{device.mac_address || "-"}</TableCell>
+                      <TableCell className="text-foreground">{device.location}</TableCell>
+                      <TableCell className="text-muted-foreground">{device.vlan_id}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {uplinkDevice ? (
+                          <span className="text-sm">{uplinkDevice.device_name}</span>
+                        ) : (
+                          <span className="text-muted-foreground/50">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs border ${statusStyles[device.status]}`}>
+                          {t(`status_${device.status.toLowerCase()}` as any) || device.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(device.id, device.device_name)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      )}
     </div>
   );
 }
