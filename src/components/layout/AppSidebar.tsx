@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import { toast } from "sonner";
 
 export function AppSidebar() {
@@ -30,6 +31,7 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { isAdmin } = useUserRole();
+  const { logoUrl } = useAppSettings();
 
   const navItems = [
     { icon: LayoutDashboard, label: t("nav_dashboard"), path: "/" },
@@ -63,8 +65,12 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center glow-primary">
-            <Shield className="w-6 h-6 text-primary" />
+          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center glow-primary overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <Shield className="w-6 h-6 text-primary" />
+            )}
           </div>
           {!collapsed && (
             <div className="animate-fade-in">

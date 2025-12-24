@@ -49,6 +49,7 @@ export type Database = {
           created_at: string
           enable_expiry_alerts: boolean
           id: string
+          logo_url: string | null
           telegram_bot_token: string | null
           telegram_chat_id: string | null
           updated_at: string
@@ -58,6 +59,7 @@ export type Database = {
           created_at?: string
           enable_expiry_alerts?: boolean
           id?: string
+          logo_url?: string | null
           telegram_bot_token?: string | null
           telegram_chat_id?: string | null
           updated_at?: string
@@ -67,6 +69,7 @@ export type Database = {
           created_at?: string
           enable_expiry_alerts?: boolean
           id?: string
+          logo_url?: string | null
           telegram_bot_token?: string | null
           telegram_chat_id?: string | null
           updated_at?: string

@@ -7,6 +7,7 @@ import {
   Flag,
   MoreVertical,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -55,10 +57,11 @@ const priorityColors: Record<string, string> = {
   Low: "bg-muted text-muted-foreground border-muted-foreground/30",
 };
 
-function TaskCard({ task, onStatusChange, onDelete, t }: { 
+function TaskCard({ task, onStatusChange, onDelete, onEdit, t }: { 
   task: Task; 
   onStatusChange: (id: string, status: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (task: Task) => void;
   t: (key: any) => string;
 }) {
   return (
@@ -76,10 +79,16 @@ function TaskCard({ task, onStatusChange, onDelete, t }: {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="bg-popover border-border">
+            <DropdownMenuItem onClick={() => onEdit(task)}>
+              <Pencil className="w-4 h-4 mr-2" />
+              {t("btn_edit")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onStatusChange(task.id, "todo")}>{t("tasks_move_to")} {t("task_todo")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onStatusChange(task.id, "in_progress")}>{t("tasks_move_to")} {t("task_in_progress")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onStatusChange(task.id, "pending_vendor")}>{t("tasks_move_to")} {t("task_pending_vendor")}</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onStatusChange(task.id, "done")}>{t("tasks_move_to")} {t("task_done")}</DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={() => onDelete(task.id)}>{t("btn_delete")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -109,7 +118,9 @@ export default function TaskTracker() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const columns = [
     { id: "todo", title: t("task_todo"), color: "border-muted-foreground" },
@@ -119,6 +130,15 @@ export default function TaskTracker() {
   ];
 
   const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    priority: "Medium",
+    requester: "",
+    due_date: "",
+    status: "todo",
+  });
+
+  const [editFormData, setEditFormData] = useState({
     title: "",
     description: "",
     priority: "Medium",
@@ -205,6 +225,53 @@ export default function TaskTracker() {
     } catch (error) {
       console.error("Error deleting task:", error);
       toast.error("Failed to delete task");
+    }
+  };
+
+  const handleEdit = (task: Task) => {
+    setEditingTask(task);
+    setEditFormData({
+      title: task.title,
+      description: task.description || "",
+      priority: task.priority,
+      requester: task.requester,
+      due_date: task.due_date || "",
+      status: task.status,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingTask || !editFormData.title || !editFormData.requester) {
+      toast.error(t("validation_required"));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: editFormData.title,
+          description: editFormData.description || null,
+          priority: editFormData.priority,
+          requester: editFormData.requester,
+          due_date: editFormData.due_date || null,
+          status: editFormData.status,
+        })
+        .eq("id", editingTask.id);
+
+      if (error) throw error;
+
+      toast.success(t("tasks_updated"));
+      setIsEditModalOpen(false);
+      setEditingTask(null);
+      fetchTasks();
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -358,6 +425,7 @@ export default function TaskTracker() {
                   task={task} 
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
+                  onEdit={handleEdit}
                   t={t}
                 />
               ))}
@@ -370,6 +438,92 @@ export default function TaskTracker() {
           </div>
         ))}
       </div>
+
+      {/* Edit Task Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>{t("tasks_edit_title")}</DialogTitle>
+            <DialogDescription>{t("tasks_edit_description")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>{t("tasks_task_title")} *</Label>
+              <Input
+                placeholder="e.g., Fix email server timeout"
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>{t("tasks_description")}</Label>
+              <Textarea
+                placeholder="Additional details..."
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                className="input-field min-h-[80px]"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("tasks_priority")}</Label>
+                <Select value={editFormData.priority} onValueChange={(value) => setEditFormData({ ...editFormData, priority: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="High">{t("priority_high")}</SelectItem>
+                    <SelectItem value="Medium">{t("priority_medium")}</SelectItem>
+                    <SelectItem value="Low">{t("priority_low")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("tasks_status")}</Label>
+                <Select value={editFormData.status} onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="todo">{t("task_todo")}</SelectItem>
+                    <SelectItem value="in_progress">{t("task_in_progress")}</SelectItem>
+                    <SelectItem value="pending_vendor">{t("task_pending_vendor")}</SelectItem>
+                    <SelectItem value="done">{t("task_done")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("tasks_requester")} *</Label>
+                <Input
+                  placeholder="John Smith"
+                  value={editFormData.requester}
+                  onChange={(e) => setEditFormData({ ...editFormData, requester: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("tasks_due_date")}</Label>
+                <Input
+                  type="date"
+                  value={editFormData.due_date}
+                  onChange={(e) => setEditFormData({ ...editFormData, due_date: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>{t("btn_cancel")}</Button>
+            <Button onClick={handleEditSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t("btn_save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
