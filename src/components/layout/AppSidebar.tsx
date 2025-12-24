@@ -158,7 +158,7 @@ export function AppSidebar() {
       </div>
 
       {/* Status */}
-      <div className="p-4">
+      <div className="px-4 pb-2">
         <div className={cn(
           "glass-card p-4",
           collapsed && "p-2"
@@ -175,6 +175,23 @@ export function AppSidebar() {
             <div className="w-3 h-3 rounded-full bg-success animate-pulse mx-auto" />
           )}
         </div>
+      </div>
+
+      {/* Credits Footer */}
+      <div className="px-4 pb-4">
+        {!collapsed ? (
+          <p className="text-xs text-muted-foreground text-center animate-fade-in">
+            Made with ❤️ by{" "}
+            <a 
+              href="mailto:felixhuynh@fxdigital.vn" 
+              className="font-medium text-amber-400 hover:underline"
+            >
+              Felix
+            </a>
+          </p>
+        ) : (
+          <p className="text-center text-xs">❤️</p>
+        )}
       </div>
     </aside>
   );
