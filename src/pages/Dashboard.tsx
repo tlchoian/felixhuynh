@@ -51,6 +51,13 @@ interface DeviceTypeStat {
   value: number;
 }
 
+interface DeviceLocationStat {
+  name: string;
+  total: number;
+  online: number;
+  offline: number;
+}
+
 interface ActivityLog {
   id: string;
   action_type: string;
@@ -68,6 +75,18 @@ interface MonthlyCost {
 interface ContractExpiry {
   month: string;
   count: number;
+}
+
+interface Location {
+  id: string;
+  name: string;
+}
+
+interface NetworkDevice {
+  id: string;
+  location_id: string | null;
+  status: string;
+  type: string;
 }
 
 // Professional tech colors for device types
@@ -92,6 +111,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [monthlyCosts, setMonthlyCosts] = useState<MonthlyCost[]>([]);
   const [deviceStats, setDeviceStats] = useState<DeviceTypeStat[]>([]);
+  const [deviceLocationStats, setDeviceLocationStats] = useState<DeviceLocationStat[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
   const [contractExpiry, setContractExpiry] = useState<ContractExpiry[]>([]);
 
@@ -149,10 +169,14 @@ export default function Dashboard() {
           setContractExpiry(expiryByMonth);
         }
 
-        // Fetch device types for pie chart
+        // Fetch device types and locations for charts
         const { data: devices } = await supabase
           .from("network_devices")
-          .select("type");
+          .select("type, status, location_id");
+
+        const { data: locations } = await supabase
+          .from("locations")
+          .select("id, name");
 
         if (devices) {
           const typeCounts: Record<string, number> = {};
@@ -164,6 +188,20 @@ export default function Dashboard() {
             value,
           }));
           setDeviceStats(deviceData);
+
+          // Calculate devices by location
+          if (locations) {
+            const locationStats: DeviceLocationStat[] = locations.map((loc) => {
+              const locationDevices = devices.filter(d => d.location_id === loc.id);
+              return {
+                name: loc.name.replace("Mvillage ", ""),
+                total: locationDevices.length,
+                online: locationDevices.filter(d => d.status === "Online").length,
+                offline: locationDevices.filter(d => d.status === "Offline").length,
+              };
+            });
+            setDeviceLocationStats(locationStats);
+          }
         }
 
         // Fetch recent activity logs
@@ -438,6 +476,58 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Devices by Location Chart */}
+      <div className="glass-card p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Thiết bị theo Chi nhánh</h2>
+        {deviceLocationStats.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={deviceLocationStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                tickLine={{ stroke: "hsl(var(--border))" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                interval={0}
+                angle={-15}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis 
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                tickLine={{ stroke: "hsl(var(--border))" }}
+                axisLine={{ stroke: "hsl(var(--border))" }}
+                allowDecimals={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  color: "hsl(var(--foreground))",
+                }}
+              />
+              <Legend 
+                verticalAlign="top"
+                height={36}
+                formatter={(value) => (
+                  <span className="text-foreground text-sm">
+                    {value === "online" ? "Online" : value === "offline" ? "Offline" : "Tổng"}
+                  </span>
+                )}
+              />
+              <Bar dataKey="total" name="Tổng" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="online" name="Online" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="offline" name="Offline" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+            {t("network_no_devices")}
+          </div>
+        )}
       </div>
 
       {/* Recent Activity & Quick Actions */}
