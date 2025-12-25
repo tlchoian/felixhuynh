@@ -46,6 +46,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { CsvImportModal } from "@/components/CsvImportModal";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { CredentialCard } from "@/components/credentials/CredentialCard";
 
 interface Credential {
   id: string;
@@ -71,6 +73,7 @@ export default function CredentialVault() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const isMobile = useIsMobile();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
@@ -261,24 +264,24 @@ export default function CredentialVault() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Shield className="w-8 h-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-3">
+            <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
             {t("vault_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">{t("vault_subtitle")}</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">{t("vault_subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <Upload className="w-4 h-4 mr-2" />
-            {t("csv_import_button")}
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="min-h-[44px]">
+            <Upload className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t("csv_import_button")}</span>
           </Button>
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                {t("btn_add_credential")}
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px]">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">{t("btn_add_credential")}</span>
               </Button>
             </DialogTrigger>
           <DialogContent className="bg-card border-border">
@@ -522,19 +525,33 @@ export default function CredentialVault() {
         />
       </div>
 
-      {/* Credentials Table */}
-      <div className="glass-card overflow-hidden">
-        {filteredCredentials.length === 0 ? (
-          <div className="p-12 text-center">
-            <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">{t("vault_no_credentials")}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t("vault_no_credentials_desc")}</p>
-            <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("btn_add_credential")}
-            </Button>
-          </div>
-        ) : (
+      {/* Credentials - Table on Desktop, Cards on Mobile */}
+      {filteredCredentials.length === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">{t("vault_no_credentials")}</h3>
+          <p className="text-sm text-muted-foreground mb-4">{t("vault_no_credentials_desc")}</p>
+          <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground min-h-[44px]">
+            <Plus className="w-4 h-4 mr-2" />
+            {t("btn_add_credential")}
+          </Button>
+        </div>
+      ) : isMobile ? (
+        /* Mobile Card View */
+        <div className="space-y-4">
+          {filteredCredentials.map((cred) => (
+            <CredentialCard
+              key={cred.id}
+              credential={cred}
+              categoryColors={categoryColors}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <div className="glass-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="border-border/50 hover:bg-transparent">
@@ -634,8 +651,8 @@ export default function CredentialVault() {
               ))}
             </TableBody>
           </Table>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
