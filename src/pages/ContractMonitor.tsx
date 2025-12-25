@@ -16,6 +16,7 @@ import {
   Wrench,
   Package,
   Key,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,28 +67,31 @@ interface Contract {
 }
 
 const typeIcons: Record<string, any> = {
-  Internet: Wifi,
+  "Domain": Globe,
+  "Hosting/VPS": Server,
+  "Server Mail": Mail,
   "Software License": Key,
-  Domain: Globe,
-  Hosting: Server,
-  Maintenance: Wrench,
-  Other: Package,
+  "Internet/Network": Wifi,
+  "Maintenance": Wrench,
+  "Other": Package,
 };
 
 const typeColors: Record<string, string> = {
-  Internet: "bg-sky-500/20 text-sky-400 border-sky-500/30",
+  "Domain": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  "Hosting/VPS": "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  "Server Mail": "bg-rose-500/20 text-rose-400 border-rose-500/30",
   "Software License": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  Domain: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  Hosting: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  Maintenance: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  Other: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  "Internet/Network": "bg-sky-500/20 text-sky-400 border-sky-500/30",
+  "Maintenance": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  "Other": "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
 
 const CONTRACT_TYPES = [
-  "Internet",
-  "Software License", 
   "Domain",
-  "Hosting",
+  "Hosting/VPS",
+  "Server Mail",
+  "Software License",
+  "Internet/Network",
   "Maintenance",
   "Other",
 ];
