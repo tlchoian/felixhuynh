@@ -187,16 +187,10 @@ export function AppSidebar() {
       <div className="px-4 pb-4">
         {!collapsed ? (
           <p className="text-xs text-muted-foreground text-center animate-fade-in">
-            Made with ❤️ by{" "}
-            <a 
-              href="mailto:felixhuynh@fxdigital.vn" 
-              className="font-medium text-amber-400 hover:underline"
-            >
-              Felix
-            </a>
+            Powered by <span className="font-medium text-primary">FX Digital</span>
           </p>
         ) : (
-          <p className="text-center text-xs">❤️</p>
+          <p className="text-center text-xs text-primary">FX</p>
         )}
       </div>
     </aside>
