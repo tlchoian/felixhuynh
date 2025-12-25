@@ -338,6 +338,12 @@ export const translations = {
     csv_no_data: "No data found in CSV file",
     csv_import_success: "Successfully imported {count} records",
     csv_import_error: "Error importing data",
+    csv_export: "Export CSV",
+    csv_no_data_export: "No data to export",
+    csv_export_success: "Data exported successfully",
+    contracts_import_title: "Import Contracts",
+    contracts_import_description: "Upload a CSV file to bulk import contracts",
+    logs_contracts_imported: "Imported contracts",
 
     // User Manager
     nav_user_manager: "User Manager",
@@ -719,6 +725,12 @@ export const translations = {
     csv_no_data: "Không tìm thấy dữ liệu trong file CSV",
     csv_import_success: "Đã nhập thành công {count} bản ghi",
     csv_import_error: "Lỗi khi nhập dữ liệu",
+    csv_export: "Xuất CSV",
+    csv_no_data_export: "Không có dữ liệu để xuất",
+    csv_export_success: "Đã xuất dữ liệu thành công",
+    contracts_import_title: "Nhập Hợp Đồng",
+    contracts_import_description: "Tải lên file CSV để nhập nhiều hợp đồng cùng lúc",
+    logs_contracts_imported: "Đã nhập hợp đồng",
 
     // User Manager
     nav_user_manager: "Quản Lý Thành Viên",

@@ -17,6 +17,8 @@ import {
   Package,
   Key,
   Mail,
+  Download,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +54,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { Badge } from "@/components/ui/badge";
+import { CsvImportModal } from "@/components/CsvImportModal";
+import Papa from "papaparse";
 
 interface Contract {
   id: string;
@@ -117,6 +121,7 @@ export default function ContractMonitor() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     asset_name: "",
@@ -303,6 +308,72 @@ export default function ContractMonitor() {
     }
   };
 
+  const handleExportCsv = () => {
+    if (contracts.length === 0) {
+      toast.error(t("csv_no_data_export"));
+      return;
+    }
+
+    const exportData = contracts.map((contract) => ({
+      Name: contract.asset_name,
+      Type: contract.type,
+      Provider: contract.provider,
+      StartDate: contract.start_date || "",
+      ExpiryDate: contract.expiry_date,
+      Cost: contract.cost,
+      BillingCycle: contract.billing_cycle,
+      Status: contract.status,
+      Notes: contract.notes || "",
+    }));
+
+    const csv = Papa.unparse(exportData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `contracts_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.success(t("csv_export_success"));
+  };
+
+  const handleImportContracts = async (data: Record<string, string>[]) => {
+    const validRecords = data.filter((row) => row.Name && row.ExpiryDate);
+    
+    if (validRecords.length === 0) {
+      throw new Error("No valid records found");
+    }
+
+    const insertData = validRecords.map((row) => ({
+      user_id: user?.id,
+      asset_name: row.Name,
+      type: CONTRACT_TYPES.includes(row.Type) ? row.Type : "Other",
+      provider: row.Provider || "",
+      start_date: row.StartDate || null,
+      expiry_date: row.ExpiryDate,
+      cost: parseFloat(row.Cost) || 0,
+      billing_cycle: row.BillingCycle === "Monthly" ? "Monthly" : "Yearly",
+      status: CONTRACT_STATUSES.includes(row.Status) ? row.Status : "Active",
+      notes: row.Notes || null,
+    }));
+
+    const { error } = await supabase.from("contracts").insert(insertData);
+    if (error) throw error;
+
+    await logActivity("CREATE", "Contract", `${t("logs_contracts_imported")}: ${validRecords.length} records`);
+  };
+
+  const csvTemplateColumns = [
+    "Name",
+    "Type",
+    "Provider",
+    "StartDate",
+    "ExpiryDate",
+    "Cost",
+    "BillingCycle",
+    "Status",
+    "Notes",
+  ];
+
   const filteredContracts = contracts
     .filter(
       (contract) =>
@@ -336,13 +407,22 @@ export default function ContractMonitor() {
           </h1>
           <p className="text-muted-foreground mt-1">{t("contracts_subtitle")}</p>
         </div>
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("btn_add_contract")}
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportCsv}>
+            <Download className="w-4 h-4 mr-2" />
+            {t("csv_export")}
+          </Button>
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            {t("csv_import")}
+          </Button>
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("btn_add_contract")}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("contracts_add_title")}</DialogTitle>
@@ -470,143 +550,155 @@ export default function ContractMonitor() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
+      </div>
 
-        {/* Edit Modal */}
-        <Dialog open={isEditModalOpen} onOpenChange={(open) => {
-          setIsEditModalOpen(open);
-          if (!open) {
-            setEditingContract(null);
-            resetFormData();
-          }
-        }}>
-          <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{t("contracts_edit_title")}</DialogTitle>
-              <DialogDescription>{t("contracts_edit_description")}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
+      {/* Edit Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+        setIsEditModalOpen(open);
+        if (!open) {
+          setEditingContract(null);
+          resetFormData();
+        }
+      }}>
+        <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("contracts_edit_title")}</DialogTitle>
+            <DialogDescription>{t("contracts_edit_description")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>{t("contracts_asset_name")} *</Label>
+              <Input
+                placeholder="e.g., Internet Viettel Office, Windows Server 2022 Key"
+                value={formData.asset_name}
+                onChange={(e) => setFormData({ ...formData, asset_name: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>{t("contracts_asset_name")} *</Label>
+                <Label>{t("contracts_type")}</Label>
+                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {CONTRACT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("contracts_status")}</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {CONTRACT_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>{status}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label>{t("contracts_provider")} *</Label>
+              <Input
+                placeholder="e.g., Viettel, Pavietnam, Microsoft"
+                value={formData.provider}
+                onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("contracts_start_date")}</Label>
                 <Input
-                  placeholder="e.g., Internet Viettel Office, Windows Server 2022 Key"
-                  value={formData.asset_name}
-                  onChange={(e) => setFormData({ ...formData, asset_name: e.target.value })}
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                   className="input-field"
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>{t("contracts_type")}</Label>
-                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                    <SelectTrigger className="input-field">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {CONTRACT_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("contracts_status")}</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                    <SelectTrigger className="input-field">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      {CONTRACT_STATUSES.map((status) => (
-                        <SelectItem key={status} value={status}>{status}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
               <div className="grid gap-2">
-                <Label>{t("contracts_provider")} *</Label>
+                <Label>{t("contracts_expiry_date")} *</Label>
                 <Input
-                  placeholder="e.g., Viettel, Pavietnam, Microsoft"
-                  value={formData.provider}
-                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                  type="date"
+                  value={formData.expiry_date}
+                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
                   className="input-field"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>{t("contracts_start_date")}</Label>
-                  <Input
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("contracts_expiry_date")} *</Label>
-                  <Input
-                    type="date"
-                    value={formData.expiry_date}
-                    onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>{t("contracts_cost")} (VND)</Label>
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={formData.cost ? Number(formData.cost).toLocaleString('vi-VN') : ''}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
-                        setFormData({ ...formData, cost: value });
-                      }}
-                      className="input-field pr-10"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">đ</span>
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("contracts_billing_cycle")}</Label>
-                  <Select value={formData.billing_cycle} onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}>
-                    <SelectTrigger className="input-field">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      <SelectItem value="Monthly">{t("billing_monthly")}</SelectItem>
-                      <SelectItem value="Yearly">{t("billing_yearly")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label>{t("contracts_notes")}</Label>
-                <Textarea
-                  placeholder="License key, contract code, or additional notes..."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="input-field min-h-[80px]"
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>{t("btn_cancel")}</Button>
-              <Button onClick={handleUpdate} disabled={isSubmitting} className="bg-primary text-primary-foreground">
-                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {t("btn_save")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t("contracts_cost")} (VND)</Label>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={formData.cost ? Number(formData.cost).toLocaleString('vi-VN') : ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                      setFormData({ ...formData, cost: value });
+                    }}
+                    className="input-field pr-10"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">đ</span>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("contracts_billing_cycle")}</Label>
+                <Select value={formData.billing_cycle} onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Monthly">{t("billing_monthly")}</SelectItem>
+                    <SelectItem value="Yearly">{t("billing_yearly")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label>{t("contracts_notes")}</Label>
+              <Textarea
+                placeholder="License key, contract code, or additional notes..."
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="input-field min-h-[80px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>{t("btn_cancel")}</Button>
+            <Button onClick={handleUpdate} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {t("btn_save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        templateColumns={csvTemplateColumns}
+        templateFileName="contracts"
+        onImport={handleImportContracts}
+        title={t("contracts_import_title")}
+        description={t("contracts_import_description")}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
