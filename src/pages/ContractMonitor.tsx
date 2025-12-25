@@ -55,6 +55,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { Badge } from "@/components/ui/badge";
 import { CsvImportModal } from "@/components/CsvImportModal";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ContractCard } from "@/components/contracts/ContractCard";
 import Papa from "papaparse";
 
 interface Contract {
@@ -113,6 +115,7 @@ export default function ContractMonitor() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const isMobile = useIsMobile();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -399,28 +402,28 @@ export default function ContractMonitor() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <FileText className="w-8 h-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-3">
+            <FileText className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
             {t("contracts_title")}
           </h1>
-          <p className="text-muted-foreground mt-1">{t("contracts_subtitle")}</p>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">{t("contracts_subtitle")}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportCsv}>
-            <Download className="w-4 h-4 mr-2" />
-            {t("csv_export")}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" onClick={handleExportCsv} className="min-h-[44px]">
+            <Download className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t("csv_export")}</span>
           </Button>
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <Upload className="w-4 h-4 mr-2" />
-            {t("csv_import")}
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="min-h-[44px]">
+            <Upload className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t("csv_import")}</span>
           </Button>
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                {t("btn_add_contract")}
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px]">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">{t("btn_add_contract")}</span>
               </Button>
             </DialogTrigger>
           <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -701,66 +704,66 @@ export default function ContractMonitor() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className="glass-card p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-2 rounded-lg bg-primary/20">
-              <FileText className="w-5 h-5 text-primary" />
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{contracts.length}</p>
-              <p className="text-xs text-muted-foreground">{t("contracts_total")}</p>
+              <p className="text-xl sm:text-2xl font-bold text-foreground">{contracts.length}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t("contracts_total")}</p>
             </div>
           </div>
         </div>
-        <div className="glass-card p-4 border-warning/30 bg-warning/5">
-          <div className="flex items-center gap-3">
+        <div className="glass-card p-3 sm:p-4 border-warning/30 bg-warning/5">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-2 rounded-lg bg-warning/20">
-              <Calendar className="w-5 h-5 text-warning" />
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-warning" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-warning">{expiringCount}</p>
-              <p className="text-xs text-muted-foreground">{t("contracts_expiring_30")}</p>
+              <p className="text-xl sm:text-2xl font-bold text-warning">{expiringCount}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t("contracts_expiring_30")}</p>
             </div>
           </div>
         </div>
-        <div className="glass-card p-4 border-destructive/30 bg-destructive/5">
-          <div className="flex items-center gap-3">
+        <div className="glass-card p-3 sm:p-4 border-destructive/30 bg-destructive/5">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-2 rounded-lg bg-destructive/20">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-destructive" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-destructive">{criticalCount}</p>
-              <p className="text-xs text-muted-foreground">{t("contracts_critical")}</p>
+              <p className="text-xl sm:text-2xl font-bold text-destructive">{criticalCount}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t("contracts_critical")}</p>
             </div>
           </div>
         </div>
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-3">
+        <div className="glass-card p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-2 rounded-lg bg-success/20">
-              <DollarSign className="w-5 h-5 text-success" />
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{totalMonthlyCost.toLocaleString('vi-VN')} đ</p>
-              <p className="text-xs text-muted-foreground">{t("contracts_monthly_cost")}</p>
+              <p className="text-lg sm:text-2xl font-bold text-foreground">{totalMonthlyCost.toLocaleString('vi-VN')} đ</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{t("contracts_monthly_cost")}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder={t("contracts_search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 input-field"
+            className="pl-10 input-field min-h-[44px]"
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px] input-field">
+          <SelectTrigger className="w-full sm:w-[180px] input-field min-h-[44px]">
             <SelectValue placeholder={t("contracts_filter_type")} />
           </SelectTrigger>
           <SelectContent className="bg-popover border-border">
@@ -772,19 +775,35 @@ export default function ContractMonitor() {
         </Select>
       </div>
 
-      {/* Contracts Table */}
-      <div className="glass-card overflow-hidden">
-        {filteredContracts.length === 0 ? (
-          <div className="p-12 text-center">
-            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">{t("contracts_no_contracts")}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t("contracts_no_contracts_desc")}</p>
-            <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("btn_add_contract")}
-            </Button>
-          </div>
-        ) : (
+      {/* Contracts - Table on Desktop, Cards on Mobile */}
+      {filteredContracts.length === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">{t("contracts_no_contracts")}</h3>
+          <p className="text-sm text-muted-foreground mb-4">{t("contracts_no_contracts_desc")}</p>
+          <Button onClick={() => setIsAddModalOpen(true)} className="bg-primary text-primary-foreground min-h-[44px]">
+            <Plus className="w-4 h-4 mr-2" />
+            {t("btn_add_contract")}
+          </Button>
+        </div>
+      ) : isMobile ? (
+        /* Mobile Card View */
+        <div className="space-y-4">
+          {filteredContracts.map((contract) => (
+            <ContractCard
+              key={contract.id}
+              contract={contract}
+              typeColors={typeColors}
+              typeIcons={typeIcons}
+              daysRemaining={getDaysRemaining(contract.expiry_date)}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <div className="glass-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="border-border/50 hover:bg-transparent">
@@ -869,8 +888,8 @@ export default function ContractMonitor() {
               })}
             </TableBody>
           </Table>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
