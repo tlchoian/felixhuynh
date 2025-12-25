@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BookOpen,
   Search,
@@ -10,11 +10,12 @@ import {
   Loader2,
   Trash2,
   Save,
+  X,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,9 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { TiptapEditor } from "@/components/wiki/TiptapEditor";
+import { useWikiDraft, useNewArticleDraft } from "@/hooks/useWikiDraft";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface WikiArticle {
   id: string;
@@ -60,45 +64,63 @@ export default function TechWiki() {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
 
+  // Draft hooks
+  const { saveDraft, loadDraft, clearDraft, hasDraft } = useWikiDraft(selectedArticle?.id || null);
+  const { 
+    saveDraft: saveNewDraft, 
+    loadDraft: loadNewDraft, 
+    clearDraft: clearNewDraft, 
+    hasDraft: hasNewDraft 
+  } = useNewArticleDraft();
+
+  // Auto-save timer ref
+  const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
+
   const defaultArticleContent = language === "vi" 
-    ? `# Bắt Đầu
-
-## Tổng Quan
-Viết tài liệu của bạn ở đây sử dụng cú pháp Markdown.
-
-## Ví Dụ Code
-\`\`\`bash
-# Lệnh ví dụ
-echo "Xin chào"
-\`\`\`
-
-## Các Bước
-1. Bước đầu tiên
-2. Bước thứ hai
-3. Bước thứ ba
-`
-    : `# Getting Started
-
-## Overview
-Write your documentation here using Markdown syntax.
-
-## Code Examples
-\`\`\`bash
-# Example command
-echo "Hello World"
-\`\`\`
-
-## Steps
-1. First step
-2. Second step
-3. Third step
-`;
+    ? `<h1>Bắt Đầu</h1><h2>Tổng Quan</h2><p>Viết tài liệu của bạn ở đây. Sử dụng "/" để chèn các khối nội dung.</p><h2>Ví Dụ Code</h2><pre><code># Lệnh ví dụ
+echo "Xin chào"</code></pre><h2>Các Bước</h2><ol><li>Bước đầu tiên</li><li>Bước thứ hai</li><li>Bước thứ ba</li></ol>`
+    : `<h1>Getting Started</h1><h2>Overview</h2><p>Write your documentation here. Use "/" to insert content blocks.</p><h2>Code Examples</h2><pre><code># Example command
+echo "Hello World"</code></pre><h2>Steps</h2><ol><li>First step</li><li>Second step</li><li>Third step</li></ol>`;
 
   const [formData, setFormData] = useState({
     title: "",
     category: "General",
     content: defaultArticleContent,
   });
+
+  // Load new article draft on mount
+  useEffect(() => {
+    const draft = loadNewDraft();
+    if (draft) {
+      setFormData(draft);
+    }
+  }, []);
+
+  // Auto-save new article draft
+  useEffect(() => {
+    if (isAddModalOpen && formData.title) {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+      autoSaveRef.current = setTimeout(() => {
+        saveNewDraft(formData);
+      }, 1000);
+    }
+    return () => {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    };
+  }, [formData, isAddModalOpen, saveNewDraft]);
+
+  // Auto-save edit draft
+  useEffect(() => {
+    if (isEditing && selectedArticle && editContent) {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+      autoSaveRef.current = setTimeout(() => {
+        saveDraft(editContent);
+      }, 1000);
+    }
+    return () => {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    };
+  }, [editContent, isEditing, selectedArticle, saveDraft]);
 
   const fetchArticles = async () => {
     try {
@@ -143,6 +165,7 @@ echo "Hello World"
 
       toast.success(t("wiki_created"));
       setIsAddModalOpen(false);
+      clearNewDraft();
       setFormData({ title: "", category: "General", content: defaultArticleContent });
       fetchArticles();
       if (data) {
@@ -169,6 +192,7 @@ echo "Hello World"
 
       toast.success(t("wiki_article_updated"));
       setIsEditing(false);
+      clearDraft();
       setSelectedArticle({ ...selectedArticle, content: editContent });
       fetchArticles();
     } catch (error) {
@@ -176,6 +200,37 @@ echo "Hello World"
       toast.error("Failed to update article");
     }
   };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditContent("");
+    clearDraft();
+  };
+
+  const handleStartEdit = useCallback(() => {
+    if (!selectedArticle) return;
+    
+    const draft = loadDraft();
+    if (draft && draft !== selectedArticle.content) {
+      // There's a draft that differs from saved content
+      setEditContent(draft);
+    } else {
+      setEditContent(selectedArticle.content);
+    }
+    setIsEditing(true);
+  }, [selectedArticle, loadDraft]);
+
+  const handleRestoreDraft = useCallback(() => {
+    const draft = loadDraft();
+    if (draft) {
+      setEditContent(draft);
+      setIsEditing(true);
+    }
+  }, [loadDraft]);
+
+  const handleDiscardDraft = useCallback(() => {
+    clearDraft();
+  }, [clearDraft]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -199,35 +254,6 @@ echo "Hello World"
     const matchesCategory = !selectedCategory || article.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
-
-  const renderMarkdown = (content: string) => {
-    return content
-      .split("\n")
-      .map((line, i) => {
-        if (line.startsWith("# ")) {
-          return <h1 key={i} className="text-2xl font-bold text-foreground mt-6 mb-4">{line.slice(2)}</h1>;
-        }
-        if (line.startsWith("## ")) {
-          return <h2 key={i} className="text-xl font-semibold text-foreground mt-5 mb-3">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith("### ")) {
-          return <h3 key={i} className="text-lg font-medium text-foreground mt-4 mb-2">{line.slice(4)}</h3>;
-        }
-        if (line.startsWith("```")) {
-          return null;
-        }
-        if (line.startsWith("- ")) {
-          return <li key={i} className="text-muted-foreground ml-4">{line.slice(2)}</li>;
-        }
-        if (line.match(/^\d+\. /)) {
-          return <li key={i} className="text-muted-foreground ml-4 list-decimal">{line.replace(/^\d+\. /, "")}</li>;
-        }
-        if (line.trim() === "") {
-          return <br key={i} />;
-        }
-        return <p key={i} className="text-muted-foreground my-1">{line}</p>;
-      });
-  };
 
   if (loading) {
     return (
@@ -255,11 +281,19 @@ echo "Hello World"
               {t("btn_new_article")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card border-border max-w-2xl">
+          <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("wiki_add_title")}</DialogTitle>
               <DialogDescription>{t("wiki_add_description")}</DialogDescription>
             </DialogHeader>
+            {hasNewDraft && (
+              <Alert className="border-primary/50 bg-primary/10">
+                <AlertCircle className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-sm">
+                  Draft restored from your previous session.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -290,12 +324,13 @@ echo "Hello World"
               </div>
               <div className="grid gap-2">
                 <Label>{t("wiki_content")} *</Label>
-                <Textarea
-                  placeholder="Write your documentation here..."
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="input-field min-h-[300px] font-mono text-sm"
-                />
+                <div className="border border-border rounded-lg p-3 bg-background">
+                  <TiptapEditor
+                    content={formData.content}
+                    onChange={(content) => setFormData({ ...formData, content })}
+                    placeholder="Type / for commands or start writing..."
+                  />
+                </div>
               </div>
             </div>
             <DialogFooter>
@@ -425,18 +460,21 @@ echo "Hello World"
                   </div>
                   <div className="flex gap-2">
                     {isEditing ? (
-                      <Button onClick={handleSaveEdit} size="sm" className="bg-primary text-primary-foreground">
-                        <Save className="w-4 h-4 mr-2" />
-                        {t("btn_save")}
-                      </Button>
+                      <>
+                        <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                          <X className="w-4 h-4 mr-2" />
+                          {t("btn_cancel")}
+                        </Button>
+                        <Button onClick={handleSaveEdit} size="sm" className="bg-primary text-primary-foreground">
+                          <Save className="w-4 h-4 mr-2" />
+                          {t("btn_save")}
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setIsEditing(true);
-                          setEditContent(selectedArticle.content);
-                        }}
+                        onClick={handleStartEdit}
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         {t("btn_edit")}
@@ -452,20 +490,41 @@ echo "Hello World"
                     </Button>
                   </div>
                 </div>
+                
+                {/* Draft restore banner */}
+                {!isEditing && hasDraft && (
+                  <Alert className="mt-4 border-primary/50 bg-primary/10">
+                    <AlertCircle className="h-4 w-4 text-primary" />
+                    <AlertDescription className="flex items-center justify-between">
+                      <span className="text-sm">You have unsaved changes from a previous session.</span>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={handleDiscardDraft}>
+                          Discard
+                        </Button>
+                        <Button size="sm" onClick={handleRestoreDraft}>
+                          Restore Draft
+                        </Button>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
 
               {/* Article Content */}
               <ScrollArea className="flex-1 p-6">
                 {isEditing ? (
-                  <Textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="input-field min-h-[500px] font-mono text-sm"
-                  />
-                ) : (
-                  <div className="prose prose-invert max-w-none">
-                    {renderMarkdown(selectedArticle.content)}
+                  <div className="border border-border rounded-lg p-3 bg-background">
+                    <TiptapEditor
+                      content={editContent}
+                      onChange={setEditContent}
+                      placeholder="Type / for commands or start writing..."
+                    />
                   </div>
+                ) : (
+                  <div 
+                    className="prose prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+                  />
                 )}
               </ScrollArea>
             </>
