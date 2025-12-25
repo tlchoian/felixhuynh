@@ -245,7 +245,7 @@ export default function Auth() {
         {/* Credits Footer */}
         <div className="mt-4 text-center">
           <p className="text-xs text-muted-foreground">
-            Phát triển bởi <span className="font-bold text-amber-400">Felix Huynh</span> | Hệ thống Quản trị IT Nội bộ v1.0
+            Powered by <span className="font-bold text-primary">FX Digital</span>
           </p>
         </div>
       </div>

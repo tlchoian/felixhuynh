@@ -1,7 +1,7 @@
 export const translations = {
   en: {
     // App
-    app_name: "IT Omni",
+    app_name: "FX Digital Center",
     app_subtitle: "Management System",
     system_status: "System Status",
     all_systems_operational: "All Systems Operational",
@@ -376,7 +376,7 @@ export const translations = {
   
   vi: {
     // App
-    app_name: "IT Omni",
+    app_name: "FX Digital Center",
     app_subtitle: "Hệ Thống Quản Lý",
     system_status: "Trạng Thái Hệ Thống",
     all_systems_operational: "Tất Cả Hệ Thống Hoạt Động",
