@@ -235,9 +235,24 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
     };
   }, [editor, showSlashMenu, editable]);
 
+  // Only sync content on initial load or when explicitly requested
+  // This prevents overwriting user's unsaved work when window regains focus
+  const initialContentRef = useRef(content);
+  const hasInitializedRef = useRef(false);
+  
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    if (editor && !hasInitializedRef.current) {
       editor.commands.setContent(content || '');
+      hasInitializedRef.current = true;
+      initialContentRef.current = content;
+    }
+  }, [editor]);
+
+  // Reset initialization when content prop changes significantly (e.g., switching articles)
+  useEffect(() => {
+    if (initialContentRef.current !== content && !editor?.isFocused) {
+      hasInitializedRef.current = false;
+      initialContentRef.current = content;
     }
   }, [content, editor]);
 
