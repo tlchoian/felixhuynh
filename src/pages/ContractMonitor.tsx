@@ -12,9 +12,14 @@ import {
   Loader2,
   Trash2,
   Pencil,
+  Wifi,
+  Wrench,
+  Package,
+  Key,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -45,30 +50,49 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { Badge } from "@/components/ui/badge";
 
 interface Contract {
   id: string;
   asset_name: string;
   type: string;
   provider: string;
+  start_date: string | null;
   expiry_date: string;
   cost: number;
   billing_cycle: string;
+  status: string;
+  notes: string | null;
 }
 
 const typeIcons: Record<string, any> = {
+  Internet: Wifi,
+  "Software License": Key,
   Domain: Globe,
   Hosting: Server,
-  SSL: Shield,
-  Software: FileText,
+  Maintenance: Wrench,
+  Other: Package,
 };
 
 const typeColors: Record<string, string> = {
+  Internet: "bg-sky-500/20 text-sky-400 border-sky-500/30",
+  "Software License": "bg-amber-500/20 text-amber-400 border-amber-500/30",
   Domain: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Hosting: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  SSL: "bg-green-500/20 text-green-400 border-green-500/30",
-  Software: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  Maintenance: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  Other: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 };
+
+const CONTRACT_TYPES = [
+  "Internet",
+  "Software License", 
+  "Domain",
+  "Hosting",
+  "Maintenance",
+  "Other",
+];
+
+const CONTRACT_STATUSES = ["Active", "Expired", "Cancelled"];
 
 function getDaysRemaining(expiryDate: string): number {
   const today = new Date();
@@ -94,9 +118,12 @@ export default function ContractMonitor() {
     asset_name: "",
     type: "Domain",
     provider: "",
+    start_date: "",
     expiry_date: "",
     cost: "",
     billing_cycle: "Yearly",
+    status: "Active",
+    notes: "",
   });
 
   const fetchContracts = async () => {
@@ -118,7 +145,37 @@ export default function ContractMonitor() {
 
   useEffect(() => {
     fetchContracts();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel("contracts-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contracts" },
+        () => {
+          fetchContracts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const resetFormData = () => {
+    setFormData({
+      asset_name: "",
+      type: "Domain",
+      provider: "",
+      start_date: "",
+      expiry_date: "",
+      cost: "",
+      billing_cycle: "Yearly",
+      status: "Active",
+      notes: "",
+    });
+  };
 
   const handleSubmit = async () => {
     if (!formData.asset_name || !formData.provider || !formData.expiry_date) {
@@ -133,9 +190,12 @@ export default function ContractMonitor() {
         asset_name: formData.asset_name,
         type: formData.type,
         provider: formData.provider,
+        start_date: formData.start_date || null,
         expiry_date: formData.expiry_date,
         cost: parseFloat(formData.cost) || 0,
         billing_cycle: formData.billing_cycle,
+        status: formData.status,
+        notes: formData.notes || null,
       });
 
       if (error) throw error;
@@ -143,8 +203,7 @@ export default function ContractMonitor() {
       await logActivity("CREATE", "Contract", `${t("logs_contract_added")}: ${formData.asset_name} (${formData.type})`);
       toast.success(t("contracts_added"));
       setIsAddModalOpen(false);
-      setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
-      fetchContracts();
+      resetFormData();
     } catch (error) {
       console.error("Error adding contract:", error);
       toast.error("Failed to add contract");
@@ -159,9 +218,12 @@ export default function ContractMonitor() {
       asset_name: contract.asset_name,
       type: contract.type,
       provider: contract.provider,
+      start_date: contract.start_date || "",
       expiry_date: contract.expiry_date,
       cost: contract.cost.toString(),
       billing_cycle: contract.billing_cycle,
+      status: contract.status,
+      notes: contract.notes || "",
     });
     setIsEditModalOpen(true);
   };
@@ -180,9 +242,12 @@ export default function ContractMonitor() {
           asset_name: formData.asset_name,
           type: formData.type,
           provider: formData.provider,
+          start_date: formData.start_date || null,
           expiry_date: formData.expiry_date,
           cost: parseFloat(formData.cost) || 0,
           billing_cycle: formData.billing_cycle,
+          status: formData.status,
+          notes: formData.notes || null,
         })
         .eq("id", editingContract.id);
 
@@ -192,8 +257,7 @@ export default function ContractMonitor() {
       toast.success(t("contracts_updated"));
       setIsEditModalOpen(false);
       setEditingContract(null);
-      setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
-      fetchContracts();
+      resetFormData();
     } catch (error) {
       console.error("Error updating contract:", error);
       toast.error("Failed to update contract");
@@ -215,13 +279,24 @@ export default function ContractMonitor() {
     }
   };
 
-  const getStatusBadge = (daysRemaining: number) => {
+  const getExpiryStatusBadge = (daysRemaining: number) => {
     if (daysRemaining <= 7) {
       return { className: "status-danger", label: t("contracts_status_critical") };
     } else if (daysRemaining <= 30) {
       return { className: "status-warning", label: t("contracts_status_expiring") };
     }
     return { className: "status-success", label: t("contracts_status_active") };
+  };
+
+  const getContractStatusBadge = (status: string) => {
+    switch (status) {
+      case "Expired":
+        return { className: "bg-destructive/20 text-destructive border-destructive/30", label: status };
+      case "Cancelled":
+        return { className: "bg-muted/50 text-muted-foreground border-muted/30", label: status };
+      default:
+        return { className: "bg-success/20 text-success border-success/30", label: status };
+    }
   };
 
   const filteredContracts = contracts
@@ -264,7 +339,7 @@ export default function ContractMonitor() {
               {t("btn_add_contract")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("contracts_add_title")}</DialogTitle>
               <DialogDescription>{t("contracts_add_description")}</DialogDescription>
@@ -273,44 +348,73 @@ export default function ContractMonitor() {
               <div className="grid gap-2">
                 <Label>{t("contracts_asset_name")} *</Label>
                 <Input
-                  placeholder="e.g., company.com"
+                  placeholder="e.g., Internet Viettel Office, Windows Server 2022 Key"
                   value={formData.asset_name}
                   onChange={(e) => setFormData({ ...formData, asset_name: e.target.value })}
                   className="input-field"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label>{t("contracts_type")}</Label>
-                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger className="input-field">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Domain">{t("type_domain")}</SelectItem>
-                    <SelectItem value="Hosting">{t("type_hosting")}</SelectItem>
-                    <SelectItem value="SSL">{t("type_ssl")}</SelectItem>
-                    <SelectItem value="Software">{t("type_software")}</SelectItem>
-                  </SelectContent>
-                </Select>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("contracts_type")}</Label>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {CONTRACT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("contracts_status")}</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {CONTRACT_STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              
               <div className="grid gap-2">
                 <Label>{t("contracts_provider")} *</Label>
                 <Input
-                  placeholder="e.g., Namecheap"
+                  placeholder="e.g., Viettel, Pavietnam, Microsoft"
                   value={formData.provider}
                   onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
                   className="input-field"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label>{t("contracts_expiry_date")} *</Label>
-                <Input
-                  type="date"
-                  value={formData.expiry_date}
-                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                  className="input-field"
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("contracts_start_date")}</Label>
+                  <Input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("contracts_expiry_date")} *</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>{t("contracts_cost")} (VND)</Label>
@@ -341,6 +445,16 @@ export default function ContractMonitor() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label>{t("contracts_notes")}</Label>
+                <Textarea
+                  placeholder="License key, contract code, or additional notes..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="input-field min-h-[80px]"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -358,10 +472,10 @@ export default function ContractMonitor() {
           setIsEditModalOpen(open);
           if (!open) {
             setEditingContract(null);
-            setFormData({ asset_name: "", type: "Domain", provider: "", expiry_date: "", cost: "", billing_cycle: "Yearly" });
+            resetFormData();
           }
         }}>
-          <DialogContent className="bg-card border-border">
+          <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("contracts_edit_title")}</DialogTitle>
               <DialogDescription>{t("contracts_edit_description")}</DialogDescription>
@@ -370,44 +484,73 @@ export default function ContractMonitor() {
               <div className="grid gap-2">
                 <Label>{t("contracts_asset_name")} *</Label>
                 <Input
-                  placeholder="e.g., company.com"
+                  placeholder="e.g., Internet Viettel Office, Windows Server 2022 Key"
                   value={formData.asset_name}
                   onChange={(e) => setFormData({ ...formData, asset_name: e.target.value })}
                   className="input-field"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label>{t("contracts_type")}</Label>
-                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                  <SelectTrigger className="input-field">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Domain">{t("type_domain")}</SelectItem>
-                    <SelectItem value="Hosting">{t("type_hosting")}</SelectItem>
-                    <SelectItem value="SSL">{t("type_ssl")}</SelectItem>
-                    <SelectItem value="Software">{t("type_software")}</SelectItem>
-                  </SelectContent>
-                </Select>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("contracts_type")}</Label>
+                  <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {CONTRACT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("contracts_status")}</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      {CONTRACT_STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              
               <div className="grid gap-2">
                 <Label>{t("contracts_provider")} *</Label>
                 <Input
-                  placeholder="e.g., Namecheap"
+                  placeholder="e.g., Viettel, Pavietnam, Microsoft"
                   value={formData.provider}
                   onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
                   className="input-field"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label>{t("contracts_expiry_date")} *</Label>
-                <Input
-                  type="date"
-                  value={formData.expiry_date}
-                  onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                  className="input-field"
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>{t("contracts_start_date")}</Label>
+                  <Input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("contracts_expiry_date")} *</Label>
+                  <Input
+                    type="date"
+                    value={formData.expiry_date}
+                    onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
               </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>{t("contracts_cost")} (VND)</Label>
@@ -438,6 +581,16 @@ export default function ContractMonitor() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label>{t("contracts_notes")}</Label>
+                <Textarea
+                  placeholder="License key, contract code, or additional notes..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="input-field min-h-[80px]"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -516,10 +669,9 @@ export default function ContractMonitor() {
           </SelectTrigger>
           <SelectContent className="bg-popover border-border">
             <SelectItem value="all">{t("all_types")}</SelectItem>
-            <SelectItem value="Domain">{t("type_domain")}</SelectItem>
-            <SelectItem value="Hosting">{t("type_hosting")}</SelectItem>
-            <SelectItem value="SSL">{t("type_ssl")}</SelectItem>
-            <SelectItem value="Software">{t("type_software")}</SelectItem>
+            {CONTRACT_TYPES.map((type) => (
+              <SelectItem key={type} value={type}>{type}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -554,7 +706,8 @@ export default function ContractMonitor() {
               {filteredContracts.map((contract) => {
                 const TypeIcon = typeIcons[contract.type] || FileText;
                 const daysRemaining = getDaysRemaining(contract.expiry_date);
-                const status = getStatusBadge(daysRemaining);
+                const expiryStatus = getExpiryStatusBadge(daysRemaining);
+                const contractStatus = getContractStatusBadge(contract.status);
                 return (
                   <TableRow key={contract.id} className="table-row">
                     <TableCell className="font-medium text-foreground">
@@ -564,12 +717,20 @@ export default function ContractMonitor() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={`status-badge ${typeColors[contract.type] || ""}`}>
+                      <span className={`status-badge ${typeColors[contract.type] || "bg-gray-500/20 text-gray-400 border-gray-500/30"}`}>
                         {contract.type}
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{contract.provider}</TableCell>
-                    <TableCell className="font-mono text-sm text-foreground">{contract.expiry_date}</TableCell>
+                    <TableCell>
+                      <span className={`font-mono text-sm ${
+                        daysRemaining <= 7 ? "text-destructive font-bold" :
+                        daysRemaining <= 30 ? "text-warning font-semibold" :
+                        "text-foreground"
+                      }`}>
+                        {contract.expiry_date}
+                      </span>
+                    </TableCell>
                     <TableCell>
                       <span className={`font-bold ${
                         daysRemaining <= 7 ? "text-destructive" :
@@ -583,8 +744,8 @@ export default function ContractMonitor() {
                       {contract.cost.toLocaleString('vi-VN')} đ/{contract.billing_cycle === "Monthly" ? "tháng" : "năm"}
                     </TableCell>
                     <TableCell>
-                      <span className={`status-badge ${status.className}`}>
-                        {status.label}
+                      <span className={`status-badge ${contractStatus.className}`}>
+                        {contractStatus.label}
                       </span>
                     </TableCell>
                     <TableCell className="text-right">
