@@ -164,12 +164,18 @@ export const translations = {
     contracts_status_expiring: "Expiring Soon",
     contracts_status_critical: "Critical",
     contracts_days: "days",
+    contracts_start_date: "Start Date",
+    contracts_notes: "Notes / License Key",
     
     // Contract Types
     type_domain: "Domain",
     type_hosting: "Hosting",
     type_ssl: "SSL",
     type_software: "Software",
+    type_internet: "Internet",
+    type_software_license: "Software License",
+    type_maintenance: "Maintenance",
+    type_other: "Other",
     
     // Billing
     billing_monthly: "Monthly",
@@ -539,12 +545,18 @@ export const translations = {
     contracts_status_expiring: "Sắp Hết Hạn",
     contracts_status_critical: "Nghiêm Trọng",
     contracts_days: "ngày",
+    contracts_start_date: "Ngày Bắt Đầu",
+    contracts_notes: "Ghi Chú / License Key",
     
     // Contract Types
     type_domain: "Tên Miền",
     type_hosting: "Hosting",
     type_ssl: "SSL",
     type_software: "Phần Mềm",
+    type_internet: "Internet",
+    type_software_license: "Giấy Phép Phần Mềm",
+    type_maintenance: "Bảo Trì",
+    type_other: "Khác",
     
     // Billing
     billing_monthly: "Hàng Tháng",
