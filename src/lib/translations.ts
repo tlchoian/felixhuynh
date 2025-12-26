@@ -373,6 +373,17 @@ export const translations = {
     pending_approval_title: "Account Pending Approval",
     pending_approval_message: "Your account is waiting for Admin Felix to approve. Please wait or contact your administrator.",
 
+    // Permissions
+    user_permissions: "Permissions",
+    permissions_title: "Edit Permissions",
+    permissions_description: "Select which modules {name} can access",
+    permissions_admin_note: "Admins have full access to all modules by default.",
+    permissions_updated: "Permissions updated successfully",
+    access_denied_title: "Access Denied",
+    access_denied_message: "You don't have permission to access this page. Please contact your administrator to request access.",
+    access_denied_go_home: "Go to Dashboard",
+    btn_permissions: "Permissions",
+
     // Misc
     loading: "Loading...",
     all_types: "All Types",
@@ -759,6 +770,17 @@ export const translations = {
     role_updated: "Đã cập nhật vai trò thành công",
     pending_approval_title: "Tài Khoản Đang Chờ Duyệt",
     pending_approval_message: "Tài khoản của bạn đang chờ Admin Felix phê duyệt. Vui lòng đợi hoặc liên hệ quản trị viên.",
+
+    // Permissions
+    user_permissions: "Phân Quyền",
+    permissions_title: "Chỉnh Sửa Quyền Truy Cập",
+    permissions_description: "Chọn các module {name} được phép truy cập",
+    permissions_admin_note: "Quản trị viên có quyền truy cập đầy đủ vào tất cả các module.",
+    permissions_updated: "Đã cập nhật quyền truy cập thành công",
+    access_denied_title: "Từ Chối Truy Cập",
+    access_denied_message: "Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên để yêu cầu quyền truy cập.",
+    access_denied_go_home: "Về Trang Chủ",
+    btn_permissions: "Phân Quyền",
 
     // Misc
     loading: "Đang tải...",

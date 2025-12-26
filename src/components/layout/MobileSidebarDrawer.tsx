@@ -14,13 +14,13 @@ import {
   Settings,
   Users,
   Shield,
-  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useUserPermissions, ModuleKey } from "@/hooks/useUserPermissions";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { toast } from "sonner";
 import {
@@ -35,24 +35,42 @@ interface MobileSidebarDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type NavItem = {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  module?: ModuleKey;
+};
+
 export function MobileSidebarDrawer({ open, onOpenChange }: MobileSidebarDrawerProps) {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { isAdmin } = useUserRole();
+  const { hasAccess } = useUserPermissions();
   const { logoUrl } = useAppSettings();
 
-  const navItems = [
+  const allNavItems: NavItem[] = [
     { icon: LayoutDashboard, label: t("nav_dashboard"), path: "/" },
-    { icon: KeyRound, label: t("nav_vault"), path: "/credentials" },
-    { icon: FileText, label: t("nav_contracts"), path: "/contracts" },
-    { icon: Network, label: t("nav_network"), path: "/network" },
-    { icon: ClipboardList, label: t("nav_tasks"), path: "/tasks" },
-    { icon: BookOpen, label: t("nav_wiki"), path: "/wiki" },
+    { icon: KeyRound, label: t("nav_vault"), path: "/credentials", module: "credentials" },
+    { icon: FileText, label: t("nav_contracts"), path: "/contracts", module: "contracts" },
+    { icon: Network, label: t("nav_network"), path: "/network", module: "network" },
+    { icon: ClipboardList, label: t("nav_tasks"), path: "/tasks", module: "tasks" },
+    { icon: BookOpen, label: t("nav_wiki"), path: "/wiki", module: "wiki" },
     { icon: History, label: t("nav_activity_logs"), path: "/activity-logs" },
     { icon: Settings, label: t("nav_settings"), path: "/settings" },
-    ...(isAdmin ? [{ icon: Users, label: t("nav_user_manager"), path: "/users" }] : []),
   ];
+
+  // Filter nav items based on permissions
+  const navItems = allNavItems.filter((item) => {
+    if (!item.module) return true;
+    return isAdmin || hasAccess(item.module);
+  });
+
+  // Add admin-only item
+  if (isAdmin) {
+    navItems.push({ icon: Users, label: t("nav_user_manager"), path: "/users" });
+  }
 
   const handleSignOut = async () => {
     await signOut();
