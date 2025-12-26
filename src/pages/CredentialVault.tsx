@@ -12,6 +12,8 @@ import {
   Loader2,
   Upload,
   Pencil,
+  StickyNote,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +43,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +61,7 @@ interface Credential {
   username: string;
   password: string;
   category: string;
+  notes: string | null;
 }
 
 // Organization tabs
@@ -122,6 +127,7 @@ export default function CredentialVault() {
     username: string;
     password: string;
     category: string;
+    notes: string;
   }
 
   const getDefaultFormData = (): FormData => ({
@@ -131,7 +137,11 @@ export default function CredentialVault() {
     password: "",
     category: activeOrganization === "all" ? "Cá nhân" : 
       ORGANIZATIONS.find(o => o.id === activeOrganization)?.label || "Cá nhân",
+    notes: "",
   });
+
+  // Valid categories for CSV import
+  const VALID_CATEGORIES = ["Cá nhân", "Mvillage", "Fxdigital", "Silkvillage"];
 
   const [formData, setFormData] = useState<FormData>(getDefaultFormData());
 
@@ -171,6 +181,7 @@ export default function CredentialVault() {
         username: formData.username,
         password: formData.password,
         category: formData.category,
+        notes: formData.notes || null,
       });
 
       if (error) throw error;
@@ -196,6 +207,7 @@ export default function CredentialVault() {
       username: credential.username,
       password: credential.password,
       category: credential.category,
+      notes: credential.notes || "",
     });
     setShowFormPassword(false);
     setIsEditModalOpen(true);
@@ -218,6 +230,7 @@ export default function CredentialVault() {
           username: formData.username,
           password: formData.password,
           category: formData.category,
+          notes: formData.notes || null,
         })
         .eq("id", editingCredential.id);
 
@@ -251,14 +264,21 @@ export default function CredentialVault() {
   };
 
   const handleCsvImport = async (data: Record<string, string>[]) => {
-    const credentialsToInsert = data.map((row) => ({
-      user_id: user?.id,
-      service_name: row.service_name || row["Service Name"] || "",
-      url: row.url || row["URL"] || null,
-      username: row.username || row["Username"] || "",
-      password: row.password || row["Password"] || "",
-      category: row.category || row["Category"] || "Cloud",
-    }));
+    const credentialsToInsert = data.map((row) => {
+      // Get category and validate it
+      const rawCategory = row.note !== undefined ? row.category : (row.category || row["Category"]);
+      const category = VALID_CATEGORIES.includes(rawCategory) ? rawCategory : "Cá nhân";
+      
+      return {
+        user_id: user?.id,
+        service_name: row.service_name || row["Service Name"] || "",
+        url: row.url || row["URL"] || null,
+        username: row.username || row["Username"] || "",
+        password: row.password || row["Password"] || "",
+        category,
+        notes: row.note || row.notes || row["Note"] || row["Notes"] || null,
+      };
+    });
 
     const validCredentials = credentialsToInsert.filter(c => c.service_name && c.username && c.password);
     
@@ -271,6 +291,32 @@ export default function CredentialVault() {
 
     await logActivity("CREATE", "Credential", `Imported ${validCredentials.length} credentials from CSV`);
     fetchCredentials();
+  };
+
+  const handleExportCsv = () => {
+    const headers = ["service_name", "url", "username", "password", "category", "note"];
+    const csvRows = [headers.join(",")];
+    
+    filteredCredentials.forEach((cred) => {
+      const row = [
+        `"${(cred.service_name || "").replace(/"/g, '""')}"`,
+        `"${(cred.url || "").replace(/"/g, '""')}"`,
+        `"${(cred.username || "").replace(/"/g, '""')}"`,
+        `"${(cred.password || "").replace(/"/g, '""')}"`,
+        `"${(cred.category || "").replace(/"/g, '""')}"`,
+        `"${(cred.notes || "").replace(/"/g, '""')}"`,
+      ];
+      csvRows.push(row.join(","));
+    });
+    
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `credentials_export_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.success("Đã xuất CSV thành công");
   };
 
   const togglePasswordVisibility = (id: string) => {
@@ -324,11 +370,21 @@ export default function CredentialVault() {
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">{t("vault_subtitle")}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCsv} className="min-h-[44px]">
+            <Download className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Xuất CSV</span>
+          </Button>
           <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="min-h-[44px]">
             <Upload className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">{t("csv_import_button")}</span>
           </Button>
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px]">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">{t("btn_add_credential")}</span>
+              </Button>
+            </DialogTrigger>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px]">
                 <Plus className="w-4 h-4 sm:mr-2" />
@@ -414,6 +470,15 @@ export default function CredentialVault() {
                     <SelectItem value="Silkvillage">Silkvillage</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Ghi chú</Label>
+                <Textarea
+                  placeholder="Ghi chú thêm về tài khoản..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="input-field min-h-[80px]"
+                />
               </div>
             </div>
             <DialogFooter>
@@ -514,6 +579,15 @@ export default function CredentialVault() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-2">
+                <Label>Ghi chú</Label>
+                <Textarea
+                  placeholder="Ghi chú thêm về tài khoản..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="input-field min-h-[80px]"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsEditModalOpen(false); setShowFormPassword(false); }}>
@@ -537,7 +611,7 @@ export default function CredentialVault() {
       <CsvImportModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
-        templateColumns={["service_name", "url", "username", "password", "category"]}
+        templateColumns={["service_name", "url", "username", "password", "category", "note"]}
         templateFileName="credentials"
         onImport={handleCsvImport}
         title={t("csv_import_title")}
@@ -620,13 +694,28 @@ export default function CredentialVault() {
                 <TableHead className="text-muted-foreground">{t("vault_password")}</TableHead>
                 <TableHead className="text-muted-foreground">Tổ chức</TableHead>
                 <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
-                <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCredentials.map((cred) => (
                 <TableRow key={cred.id} className="table-row">
-                  <TableCell className="font-medium text-foreground">{cred.service_name}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    <div className="flex items-center gap-2">
+                      {cred.service_name}
+                      {cred.notes && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <StickyNote className="w-4 h-4 text-amber-500 cursor-help flex-shrink-0" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[300px]">
+                              <p className="text-sm">{cred.notes}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     {cred.url ? (
                       <a

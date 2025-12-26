@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Eye, EyeOff, Copy, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Copy, ExternalLink, Pencil, Trash2, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 
@@ -11,6 +12,7 @@ interface Credential {
   username: string;
   password: string;
   category: string;
+  notes: string | null;
 }
 
 // Organization badge colors
@@ -49,7 +51,21 @@ export function CredentialCard({ credential, categoryColors, organizationColors,
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate">{credential.service_name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-foreground truncate">{credential.service_name}</h3>
+            {credential.notes && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <StickyNote className="w-4 h-4 text-amber-500 cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-[300px]">
+                    <p className="text-sm">{credential.notes}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <span className={`inline-block mt-1 status-badge text-xs ${getOrgBadgeColor(credential.category)}`}>
             {credential.category}
           </span>
