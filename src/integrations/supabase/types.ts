@@ -259,6 +259,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          allowed_modules: string[] | null
           avatar_url: string | null
           created_at: string
           department: string | null
@@ -269,6 +270,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allowed_modules?: string[] | null
           avatar_url?: string | null
           created_at?: string
           department?: string | null
@@ -279,6 +281,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allowed_modules?: string[] | null
           avatar_url?: string | null
           created_at?: string
           department?: string | null

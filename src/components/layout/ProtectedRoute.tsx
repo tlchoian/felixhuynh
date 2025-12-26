@@ -1,7 +1,8 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { Loader2 } from "lucide-react";
 import { PendingApprovalScreen } from "./PendingApprovalScreen";
 
@@ -12,9 +13,11 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const { status, loading: roleLoading } = useUserRole();
+  const { canAccessRoute, loading: permissionsLoading } = useUserPermissions();
   const { t } = useLanguage();
+  const location = useLocation();
 
-  if (loading || roleLoading) {
+  if (loading || roleLoading || permissionsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -37,6 +40,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Block access for suspended users
   if (status === "suspended") {
     return <PendingApprovalScreen />;
+  }
+
+  // Check route-level permissions
+  if (!canAccessRoute(location.pathname)) {
+    return <Navigate to="/access-denied" replace />;
   }
 
   return <>{children}</>;

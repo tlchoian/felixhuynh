@@ -19,6 +19,7 @@ import TechWiki from "./pages/TechWiki";
 import ActivityLogs from "./pages/ActivityLogs";
 import Settings from "./pages/Settings";
 import UserManager from "./pages/UserManager";
+import AccessDenied from "./pages/AccessDenied";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ const App = () => (
                           <Route path="/activity-logs" element={<ActivityLogs />} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="/users" element={<UserManager />} />
+                          <Route path="/access-denied" element={<AccessDenied />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                       </AppLayout>
