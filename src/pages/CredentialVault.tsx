@@ -385,13 +385,7 @@ export default function CredentialVault() {
                 <span className="hidden sm:inline">{t("btn_add_credential")}</span>
               </Button>
             </DialogTrigger>
-            <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px]">
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">{t("btn_add_credential")}</span>
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="bg-card border-border">
+            <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Lock className="w-5 h-5 text-primary" />
