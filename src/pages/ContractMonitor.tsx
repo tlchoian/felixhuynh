@@ -19,6 +19,7 @@ import {
   Mail,
   Download,
   Upload,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -410,20 +417,40 @@ export default function ContractMonitor() {
           </h1>
           <p className="text-muted-foreground mt-1 text-sm sm:text-base">{t("contracts_subtitle")}</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" onClick={handleExportCsv} className="min-h-[44px]">
-            <Download className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t("csv_export")}</span>
+        <div className="flex items-center gap-2">
+          {/* Mobile: More dropdown for secondary actions */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild className="md:hidden">
+              <Button variant="outline" size="icon" className="min-h-[44px] min-w-[44px]">
+                <MoreVertical className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover border-border">
+              <DropdownMenuItem onClick={handleExportCsv} className="gap-2">
+                <Download className="w-4 h-4" />
+                {t("csv_export")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsImportModalOpen(true)} className="gap-2">
+                <Upload className="w-4 h-4" />
+                {t("csv_import")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Desktop: Show buttons inline */}
+          <Button variant="outline" onClick={handleExportCsv} className="hidden md:flex min-h-[44px]">
+            <Download className="w-4 h-4 mr-2" />
+            {t("csv_export")}
           </Button>
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="min-h-[44px]">
-            <Upload className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t("csv_import")}</span>
+          <Button variant="outline" onClick={() => setIsImportModalOpen(true)} className="hidden md:flex min-h-[44px]">
+            <Upload className="w-4 h-4 mr-2" />
+            {t("csv_import")}
           </Button>
           <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px]">
-                <Plus className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">{t("btn_add_contract")}</span>
+                <Plus className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">{t("btn_add_contract")}</span>
               </Button>
             </DialogTrigger>
           <DialogContent className="bg-card border-border max-w-2xl max-h-[90vh] overflow-y-auto">
