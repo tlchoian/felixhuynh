@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Search,
@@ -16,6 +16,7 @@ import {
   Upload,
   Pencil,
   MapPin,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
 import { NetworkTopology } from "@/components/network/NetworkTopology";
 import { CsvImportModal } from "@/components/CsvImportModal";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface Location {
   id: string;
@@ -101,6 +104,7 @@ export default function NetworkIPAM() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const topologyRef = useRef<HTMLDivElement>(null);
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +116,7 @@ export default function NetworkIPAM() {
   const [viewMode, setViewMode] = useState<"list" | "topology">("list");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [editingDevice, setEditingDevice] = useState<NetworkDevice | null>(null);
   const [editFormData, setEditFormData] = useState({
     device_name: "",
@@ -339,6 +344,113 @@ export default function NetworkIPAM() {
     if (!locationId) return "-";
     const location = locations.find(l => l.id === locationId);
     return location?.name || "-";
+  };
+
+  // Export topology diagram as PDF
+  const handleExportPdf = async () => {
+    if (!topologyRef.current) {
+      toast.error("Không tìm thấy sơ đồ mạng");
+      return;
+    }
+
+    setIsExportingPdf(true);
+    toast.info("Đang tạo PDF...");
+
+    try {
+      // Capture the topology element
+      const canvas = await html2canvas(topologyRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#0a0f1c',
+        logging: false,
+      });
+
+      // Create PDF in landscape orientation
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      
+      // Header
+      const currentDate = new Date().toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      // Add header background
+      pdf.setFillColor(10, 15, 28);
+      pdf.rect(0, 0, pageWidth, 25, 'F');
+
+      // Add logo placeholder (a simple network icon representation)
+      pdf.setFillColor(45, 212, 191);
+      pdf.circle(15, 12.5, 5, 'F');
+      pdf.setFontSize(8);
+      pdf.setTextColor(10, 15, 28);
+      pdf.text('FX', 12.5, 14);
+
+      // Add title
+      pdf.setFontSize(16);
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Sơ Đồ Kết Nối Mạng', 25, 12);
+
+      // Add date
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(200, 200, 200);
+      pdf.text(currentDate, 25, 18);
+
+      // Add company name on right
+      pdf.setFontSize(12);
+      pdf.setTextColor(45, 212, 191);
+      pdf.text('FX Digital Center', pageWidth - 15, 14, { align: 'right' });
+
+      // Calculate image dimensions to fit the page
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const maxImgHeight = pageHeight - 35;
+      
+      let finalWidth = imgWidth;
+      let finalHeight = imgHeight;
+      
+      if (imgHeight > maxImgHeight) {
+        finalHeight = maxImgHeight;
+        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      }
+
+      // Center the image
+      const xPos = (pageWidth - finalWidth) / 2;
+      const yPos = 28;
+
+      // Add the topology image
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', xPos, yPos, finalWidth, finalHeight);
+
+      // Add footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(
+        `Xuất lúc: ${new Date().toLocaleString('vi-VN')} | Tổng số thiết bị: ${filteredDevices.length}`,
+        pageWidth / 2,
+        pageHeight - 5,
+        { align: 'center' }
+      );
+
+      // Save the PDF
+      pdf.save(`so-do-mang-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success("Đã xuất PDF thành công!");
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error("Lỗi khi xuất PDF");
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   if (loading) {
@@ -631,7 +743,30 @@ export default function NetworkIPAM() {
 
       {/* Content based on view mode */}
       {viewMode === "topology" ? (
-        <NetworkTopology devices={filteredDevices} />
+        <div className="space-y-4">
+          {/* Topology Toolbar */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf || filteredDevices.length === 0}
+              className="gap-2"
+            >
+              {isExportingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang tạo PDF...
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4" />
+                  Xuất Bản Vẽ (PDF)
+                </>
+              )}
+            </Button>
+          </div>
+          <NetworkTopology ref={topologyRef} devices={filteredDevices} />
+        </div>
       ) : (
         /* Devices Table */
         <div className="glass-card overflow-hidden">
@@ -856,3 +991,4 @@ export default function NetworkIPAM() {
     </div>
   );
 }
+
