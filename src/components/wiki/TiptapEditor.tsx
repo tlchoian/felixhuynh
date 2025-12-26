@@ -3,6 +3,10 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import Link from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
 import { common, createLowlight } from 'lowlight';
 import { useEffect, useCallback, useState, useRef } from 'react';
 import {
@@ -19,8 +23,9 @@ import {
   Minus,
   Image as ImageIcon,
   Code2,
-  Undo,
-  Redo,
+  Link as LinkIcon,
+  Highlighter,
+  Type,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -95,6 +100,23 @@ const slashMenuItems: SlashMenuItem[] = [
   },
 ];
 
+const highlightColors = [
+  { name: 'Yellow', color: '#fef08a' },
+  { name: 'Green', color: '#bbf7d0' },
+  { name: 'Blue', color: '#bfdbfe' },
+  { name: 'Pink', color: '#fbcfe8' },
+  { name: 'Orange', color: '#fed7aa' },
+];
+
+const textColors = [
+  { name: 'Default', color: 'inherit' },
+  { name: 'Red', color: '#ef4444' },
+  { name: 'Orange', color: '#f97316' },
+  { name: 'Green', color: '#22c55e' },
+  { name: 'Blue', color: '#3b82f6' },
+  { name: 'Purple', color: '#a855f7' },
+];
+
 interface TiptapEditorProps {
   content: string;
   onChange: (content: string) => void;
@@ -107,7 +129,13 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filterText, setFilterText] = useState('');
+  const [showBubbleMenu, setShowBubbleMenu] = useState(false);
+  const [bubbleMenuPosition, setBubbleMenuPosition] = useState({ top: 0, left: 0 });
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const bubbleMenuRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredItems = slashMenuItems.filter(item =>
     item.title.toLowerCase().includes(filterText.toLowerCase())
@@ -123,20 +151,55 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
       }),
       Image.configure({
         HTMLAttributes: {
-          class: 'rounded-lg max-w-full h-auto',
+          class: 'rounded-lg max-w-full h-auto my-4',
         },
       }),
       CodeBlockLowlight.configure({
         lowlight,
         HTMLAttributes: {
-          class: 'bg-muted/50 rounded-lg p-4 font-mono text-sm overflow-x-auto',
+          class: 'bg-muted/50 rounded-lg p-4 font-mono text-sm overflow-x-auto my-4',
         },
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primary underline cursor-pointer hover:text-primary/80',
+        },
+      }),
+      TextStyle,
+      Color,
+      Highlight.configure({
+        multicolor: true,
       }),
     ],
     content: content || '',
     editable,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+    },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to } = editor.state.selection;
+      const hasSelection = from !== to;
+      
+      if (hasSelection && editable) {
+        // Get the selection coordinates
+        const { view } = editor;
+        const start = view.coordsAtPos(from);
+        const end = view.coordsAtPos(to);
+        const editorRect = editorContainerRef.current?.getBoundingClientRect();
+        
+        if (editorRect) {
+          const top = start.top - editorRect.top - 50;
+          const left = Math.max(0, (start.left + end.left) / 2 - editorRect.left - 100);
+          
+          setBubbleMenuPosition({ top, left });
+          setShowBubbleMenu(true);
+        }
+      } else {
+        setShowBubbleMenu(false);
+        setShowColorPicker(false);
+        setShowHighlightPicker(false);
+      }
     },
     editorProps: {
       attributes: {
@@ -204,6 +267,22 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
     setSelectedIndex(0);
   }, [editor, filterText]);
 
+  const setLink = useCallback(() => {
+    if (!editor) return;
+    
+    const previousUrl = editor.getAttributes('link').href;
+    const url = window.prompt('Enter URL', previousUrl);
+    
+    if (url === null) return;
+    
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      return;
+    }
+    
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+  }, [editor]);
+
   useEffect(() => {
     if (!editor) return;
 
@@ -216,15 +295,17 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
           const { from } = selection;
           
           const coords = view.coordsAtPos(from);
-          const editorRect = view.dom.getBoundingClientRect();
+          const editorRect = editorContainerRef.current?.getBoundingClientRect();
           
-          setSlashMenuPosition({
-            top: coords.top - editorRect.top + 24,
-            left: coords.left - editorRect.left,
-          });
-          setShowSlashMenu(true);
-          setSelectedIndex(0);
-          setFilterText('');
+          if (editorRect) {
+            setSlashMenuPosition({
+              top: coords.top - editorRect.top + 24,
+              left: coords.left - editorRect.left,
+            });
+            setShowSlashMenu(true);
+            setSelectedIndex(0);
+            setFilterText('');
+          }
         }, 10);
       }
     };
@@ -236,7 +317,6 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
   }, [editor, showSlashMenu, editable]);
 
   // Only sync content on initial load or when explicitly requested
-  // This prevents overwriting user's unsaved work when window regains focus
   const initialContentRef = useRef(content);
   const hasInitializedRef = useRef(false);
   
@@ -262,23 +342,29 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
         setShowSlashMenu(false);
         setFilterText('');
       }
+      if (bubbleMenuRef.current && !bubbleMenuRef.current.contains(event.target as Node)) {
+        setShowColorPicker(false);
+        setShowHighlightPicker(false);
+      }
     };
 
-    if (showSlashMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSlashMenu]);
+  }, []);
 
   if (!editor) return null;
 
   return (
-    <div className="relative">
-      {/* Toolbar */}
-      {editable && (
-        <div className="flex items-center gap-1 p-2 mb-2 rounded-lg bg-muted/30 border border-border/50 flex-wrap">
+    <div className="relative" ref={editorContainerRef}>
+      {/* Floating Bubble Menu for text selection */}
+      {showBubbleMenu && editable && (
+        <div
+          ref={bubbleMenuRef}
+          className="absolute z-50 flex items-center gap-1 p-1.5 rounded-lg bg-popover border border-border shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+          style={{ top: bubbleMenuPosition.top, left: bubbleMenuPosition.left }}
+        >
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
             className={cn(
@@ -320,135 +406,113 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
             <Code className="w-4 h-4" />
           </button>
           
-          <div className="w-px h-5 bg-border mx-1" />
+          <div className="w-px h-5 bg-border mx-0.5" />
           
           <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            onClick={setLink}
             className={cn(
               'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('heading', { level: 1 }) && 'bg-muted text-primary'
+              editor.isActive('link') && 'bg-muted text-primary'
             )}
-            title="Heading 1"
+            title="Add Link"
           >
-            <Heading1 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={cn(
-              'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('heading', { level: 2 }) && 'bg-muted text-primary'
-            )}
-            title="Heading 2"
-          >
-            <Heading2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={cn(
-              'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('heading', { level: 3 }) && 'bg-muted text-primary'
-            )}
-            title="Heading 3"
-          >
-            <Heading3 className="w-4 h-4" />
+            <LinkIcon className="w-4 h-4" />
           </button>
           
-          <div className="w-px h-5 bg-border mx-1" />
+          <div className="w-px h-5 bg-border mx-0.5" />
           
-          <button
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={cn(
-              'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('bulletList') && 'bg-muted text-primary'
+          {/* Text Color Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowColorPicker(!showColorPicker);
+                setShowHighlightPicker(false);
+              }}
+              className="p-1.5 rounded hover:bg-muted transition-colors"
+              title="Text Color"
+            >
+              <Type className="w-4 h-4" />
+            </button>
+            {showColorPicker && (
+              <div className="absolute top-full left-0 mt-1 p-2 bg-popover border border-border rounded-lg shadow-xl z-50 flex gap-1">
+                {textColors.map((color) => (
+                  <button
+                    key={color.name}
+                    onClick={() => {
+                      if (color.color === 'inherit') {
+                        editor.chain().focus().unsetColor().run();
+                      } else {
+                        editor.chain().focus().setColor(color.color).run();
+                      }
+                      setShowColorPicker(false);
+                    }}
+                    className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform flex items-center justify-center"
+                    style={{ backgroundColor: color.color === 'inherit' ? 'transparent' : color.color }}
+                    title={color.name}
+                  >
+                    {color.color === 'inherit' && <span className="text-xs">A</span>}
+                  </button>
+                ))}
+              </div>
             )}
-            title="Bullet List"
-          >
-            <List className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={cn(
-              'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('orderedList') && 'bg-muted text-primary'
+          </div>
+          
+          {/* Highlight Color Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowHighlightPicker(!showHighlightPicker);
+                setShowColorPicker(false);
+              }}
+              className={cn(
+                'p-1.5 rounded hover:bg-muted transition-colors',
+                editor.isActive('highlight') && 'bg-muted text-primary'
+              )}
+              title="Highlight"
+            >
+              <Highlighter className="w-4 h-4" />
+            </button>
+            {showHighlightPicker && (
+              <div className="absolute top-full left-0 mt-1 p-2 bg-popover border border-border rounded-lg shadow-xl z-50 flex gap-1">
+                <button
+                  onClick={() => {
+                    editor.chain().focus().unsetHighlight().run();
+                    setShowHighlightPicker(false);
+                  }}
+                  className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform flex items-center justify-center"
+                  title="Remove Highlight"
+                >
+                  <span className="text-xs">✕</span>
+                </button>
+                {highlightColors.map((color) => (
+                  <button
+                    key={color.name}
+                    onClick={() => {
+                      editor.chain().focus().toggleHighlight({ color: color.color }).run();
+                      setShowHighlightPicker(false);
+                    }}
+                    className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color.color }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
             )}
-            title="Numbered List"
-          >
-            <ListOrdered className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={cn(
-              'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('blockquote') && 'bg-muted text-primary'
-            )}
-            title="Quote"
-          >
-            <Quote className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            className={cn(
-              'p-1.5 rounded hover:bg-muted transition-colors',
-              editor.isActive('codeBlock') && 'bg-muted text-primary'
-            )}
-            title="Code Block"
-          >
-            <Code2 className="w-4 h-4" />
-          </button>
-          
-          <div className="w-px h-5 bg-border mx-1" />
-          
-          <button
-            onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            className="p-1.5 rounded hover:bg-muted transition-colors"
-            title="Divider"
-          >
-            <Minus className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              const url = window.prompt('Enter image URL');
-              if (url) {
-                editor.chain().focus().setImage({ src: url }).run();
-              }
-            }}
-            className="p-1.5 rounded hover:bg-muted transition-colors"
-            title="Insert Image"
-          >
-            <ImageIcon className="w-4 h-4" />
-          </button>
-          
-          <div className="w-px h-5 bg-border mx-1" />
-          
-          <button
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-30"
-            title="Undo"
-          >
-            <Undo className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-30"
-            title="Redo"
-          >
-            <Redo className="w-4 h-4" />
-          </button>
+          </div>
         </div>
       )}
 
       <EditorContent editor={editor} />
 
+      {/* Slash Command Menu */}
       {showSlashMenu && editable && (
         <div
           ref={menuRef}
-          className="absolute z-50 bg-popover border border-border rounded-lg shadow-xl p-2 w-64 max-h-80 overflow-y-auto"
+          className="absolute z-50 bg-popover border border-border rounded-lg shadow-xl p-2 w-72 max-h-80 overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-150"
           style={{ top: slashMenuPosition.top, left: slashMenuPosition.left }}
         >
-          <div className="text-xs text-muted-foreground px-2 py-1 mb-1">
-            {filterText ? `Searching: ${filterText}` : 'Type to filter...'}
+          <div className="text-xs text-muted-foreground px-2 py-1 mb-1 font-medium uppercase tracking-wide">
+            {filterText ? `Searching: ${filterText}` : 'Basic blocks'}
           </div>
           {filteredItems.length === 0 ? (
             <div className="px-2 py-3 text-sm text-muted-foreground text-center">
@@ -460,11 +524,11 @@ export function TiptapEditor({ content, onChange, editable = true, placeholder =
                 key={item.title}
                 onClick={() => executeCommand(item)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-2 py-2 rounded-md text-left transition-colors',
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-left transition-colors',
                   index === selectedIndex ? 'bg-primary/20 text-primary' : 'hover:bg-muted'
                 )}
               >
-                <div className="p-1.5 rounded bg-muted">
+                <div className="p-2 rounded-md bg-muted border border-border/50">
                   {item.icon}
                 </div>
                 <div>
