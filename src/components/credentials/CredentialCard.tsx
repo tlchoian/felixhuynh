@@ -13,14 +13,24 @@ interface Credential {
   category: string;
 }
 
+// Organization badge colors
+const organizationBadgeColors: Record<string, string> = {
+  "Cá nhân": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  "Personal": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  "Mvillage": "bg-violet-500/20 text-violet-400 border-violet-500/30",
+  "Fxdigital": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  "Silkvillage": "bg-rose-500/20 text-rose-400 border-rose-500/30",
+};
+
 interface CredentialCardProps {
   credential: Credential;
   categoryColors: Record<string, string>;
+  organizationColors?: Record<string, string>;
   onEdit: (credential: Credential) => void;
   onDelete: (id: string, serviceName: string) => void;
 }
 
-export function CredentialCard({ credential, categoryColors, onEdit, onDelete }: CredentialCardProps) {
+export function CredentialCard({ credential, categoryColors, organizationColors, onEdit, onDelete }: CredentialCardProps) {
   const { t } = useLanguage();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -29,13 +39,18 @@ export function CredentialCard({ credential, categoryColors, onEdit, onDelete }:
     toast.success(`${type} ${t("vault_copied")}`);
   };
 
+  // Get organization badge color
+  const getOrgBadgeColor = (category: string) => {
+    return organizationBadgeColors[category] || organizationColors?.[category] || categoryColors[category] || "bg-cyan-500/20 text-cyan-400 border-cyan-500/30";
+  };
+
   return (
     <div className="glass-card p-4 space-y-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-foreground truncate">{credential.service_name}</h3>
-          <span className={`inline-block mt-1 status-badge text-xs ${categoryColors[credential.category] || "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"}`}>
+          <span className={`inline-block mt-1 status-badge text-xs ${getOrgBadgeColor(credential.category)}`}>
             {credential.category}
           </span>
         </div>

@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +59,26 @@ interface Credential {
   category: string;
 }
 
+// Organization tabs
+const ORGANIZATIONS = [
+  { id: "all", label: "Tất cả" },
+  { id: "personal", label: "Cá nhân" },
+  { id: "mvillage", label: "Mvillage" },
+  { id: "fxdigital", label: "Fxdigital" },
+  { id: "silkvillage", label: "Silkvillage" },
+] as const;
+
+type OrganizationId = typeof ORGANIZATIONS[number]["id"];
+
+// Organization badge colors (using labels as keys)
+const organizationColors: Record<string, string> = {
+  "Cá nhân": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  "Personal": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  "Mvillage": "bg-violet-500/20 text-violet-400 border-violet-500/30",
+  "Fxdigital": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  "Silkvillage": "bg-rose-500/20 text-rose-400 border-rose-500/30",
+};
+
 const categoryColors: Record<string, string> = {
   Server: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   Social: "bg-pink-500/20 text-pink-400 border-pink-500/30",
@@ -69,6 +90,15 @@ const categoryColors: Record<string, string> = {
   VPN: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
 };
 
+// Map category values to organization IDs for filtering
+const categoryToOrganization: Record<string, OrganizationId> = {
+  "Cá nhân": "personal",
+  "Personal": "personal",
+  "Mvillage": "mvillage",
+  "Fxdigital": "fxdigital",
+  "Silkvillage": "silkvillage",
+};
+
 export default function CredentialVault() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -78,6 +108,7 @@ export default function CredentialVault() {
   const [loading, setLoading] = useState(true);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeOrganization, setActiveOrganization] = useState<OrganizationId>("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,13 +116,24 @@ export default function CredentialVault() {
   const [editingCredential, setEditingCredential] = useState<Credential | null>(null);
   const [showFormPassword, setShowFormPassword] = useState(false);
   
-  const [formData, setFormData] = useState({
+  interface FormData {
+    service_name: string;
+    url: string;
+    username: string;
+    password: string;
+    category: string;
+  }
+
+  const getDefaultFormData = (): FormData => ({
     service_name: "",
     url: "",
     username: "",
     password: "",
-    category: "Cloud",
+    category: activeOrganization === "all" ? "Cá nhân" : 
+      ORGANIZATIONS.find(o => o.id === activeOrganization)?.label || "Cá nhân",
   });
+
+  const [formData, setFormData] = useState<FormData>(getDefaultFormData());
 
   const fetchCredentials = async () => {
     try {
@@ -136,7 +178,7 @@ export default function CredentialVault() {
       await logActivity("CREATE", "Credential", `${t("logs_credential_added")}: ${formData.service_name}`);
       toast.success(t("vault_credential_added"));
       setIsAddModalOpen(false);
-      setFormData({ service_name: "", url: "", username: "", password: "", category: "Cloud" });
+      setFormData(getDefaultFormData());
       fetchCredentials();
     } catch (error) {
       console.error("Error adding credential:", error);
@@ -185,7 +227,7 @@ export default function CredentialVault() {
       toast.success(t("vault_credential_updated"));
       setIsEditModalOpen(false);
       setEditingCredential(null);
-      setFormData({ service_name: "", url: "", username: "", password: "", category: "Cloud" });
+      setFormData(getDefaultFormData());
       fetchCredentials();
     } catch (error) {
       console.error("Error updating credential:", error);
@@ -246,12 +288,21 @@ export default function CredentialVault() {
     toast.success(`${type} ${t("vault_copied")}`);
   };
 
-  const filteredCredentials = credentials.filter(
-    (cred) =>
+  const filteredCredentials = credentials.filter((cred) => {
+    // Text search filter
+    const matchesSearch =
       cred.service_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       cred.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      cred.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      cred.category.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Organization filter
+    if (activeOrganization === "all") {
+      return matchesSearch;
+    }
+    
+    const credOrg = categoryToOrganization[cred.category] || null;
+    return matchesSearch && credOrg === activeOrganization;
+  });
 
   if (loading) {
     return (
@@ -348,23 +399,19 @@ export default function CredentialVault() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label>{t("vault_category")}</Label>
+                <Label>Tổ chức *</Label>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}
                 >
                   <SelectTrigger className="input-field">
-                    <SelectValue />
+                    <SelectValue placeholder="Chọn tổ chức" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Server">{t("category_server")}</SelectItem>
-                    <SelectItem value="Social">{t("category_social")}</SelectItem>
-                    <SelectItem value="Hosting">{t("category_hosting")}</SelectItem>
-                    <SelectItem value="Cloud">{t("category_cloud")}</SelectItem>
-                    <SelectItem value="Database">{t("category_database")}</SelectItem>
-                    <SelectItem value="Banking">{t("category_banking")}</SelectItem>
-                    <SelectItem value="Email">{t("category_email")}</SelectItem>
-                    <SelectItem value="VPN">{t("category_vpn")}</SelectItem>
+                    <SelectItem value="Cá nhân">Cá nhân</SelectItem>
+                    <SelectItem value="Mvillage">Mvillage</SelectItem>
+                    <SelectItem value="Fxdigital">Fxdigital</SelectItem>
+                    <SelectItem value="Silkvillage">Silkvillage</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -451,23 +498,19 @@ export default function CredentialVault() {
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label>{t("vault_category")}</Label>
+                <Label>Tổ chức *</Label>
                 <Select
                   value={formData.category}
                   onValueChange={(value) => setFormData({ ...formData, category: value })}
                 >
                   <SelectTrigger className="input-field">
-                    <SelectValue />
+                    <SelectValue placeholder="Chọn tổ chức" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Server">{t("category_server")}</SelectItem>
-                    <SelectItem value="Social">{t("category_social")}</SelectItem>
-                    <SelectItem value="Hosting">{t("category_hosting")}</SelectItem>
-                    <SelectItem value="Cloud">{t("category_cloud")}</SelectItem>
-                    <SelectItem value="Database">{t("category_database")}</SelectItem>
-                    <SelectItem value="Banking">{t("category_banking")}</SelectItem>
-                    <SelectItem value="Email">{t("category_email")}</SelectItem>
-                    <SelectItem value="VPN">{t("category_vpn")}</SelectItem>
+                    <SelectItem value="Cá nhân">Cá nhân</SelectItem>
+                    <SelectItem value="Mvillage">Mvillage</SelectItem>
+                    <SelectItem value="Fxdigital">Fxdigital</SelectItem>
+                    <SelectItem value="Silkvillage">Silkvillage</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -514,6 +557,21 @@ export default function CredentialVault() {
         </div>
       </div>
 
+      {/* Organization Tabs */}
+      <Tabs value={activeOrganization} onValueChange={(value) => setActiveOrganization(value as OrganizationId)} className="w-full">
+        <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1 bg-muted/50">
+          {ORGANIZATIONS.map((org) => (
+            <TabsTrigger
+              key={org.id}
+              value={org.id}
+              className="flex-1 min-w-[80px] data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            >
+              {org.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -544,6 +602,7 @@ export default function CredentialVault() {
               key={cred.id}
               credential={cred}
               categoryColors={categoryColors}
+              organizationColors={organizationColors}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
@@ -559,7 +618,8 @@ export default function CredentialVault() {
                 <TableHead className="text-muted-foreground">{t("vault_url")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("vault_username")}</TableHead>
                 <TableHead className="text-muted-foreground">{t("vault_password")}</TableHead>
-                <TableHead className="text-muted-foreground">{t("vault_category")}</TableHead>
+                <TableHead className="text-muted-foreground">Tổ chức</TableHead>
+                <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
                 <TableHead className="text-muted-foreground text-right">{t("vault_actions")}</TableHead>
               </TableRow>
             </TableHeader>
@@ -623,7 +683,7 @@ export default function CredentialVault() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className={`status-badge ${categoryColors[cred.category] || categoryColors.Cloud}`}>
+                    <span className={`status-badge ${organizationColors[cred.category] || categoryColors[cred.category] || "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"}`}>
                       {cred.category}
                     </span>
                   </TableCell>
