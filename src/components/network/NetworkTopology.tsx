@@ -1,4 +1,4 @@
-import { useMemo, forwardRef } from 'react';
+import { useMemo, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
 import {
   ReactFlow,
   Node,
@@ -25,6 +25,11 @@ interface NetworkDevice {
 
 interface NetworkTopologyProps {
   devices: NetworkDevice[];
+}
+
+export interface NetworkTopologyHandle {
+  enablePrintMode: () => void;
+  disablePrintMode: () => void;
 }
 
 const nodeTypes = {
@@ -63,8 +68,15 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   return { nodes: layoutedNodes, edges };
 };
 
-export const NetworkTopology = forwardRef<HTMLDivElement, NetworkTopologyProps>(
+export const NetworkTopology = forwardRef<NetworkTopologyHandle, NetworkTopologyProps>(
   ({ devices }, ref) => {
+    const [isPrintMode, setIsPrintMode] = useState(false);
+
+    useImperativeHandle(ref, () => ({
+      enablePrintMode: () => setIsPrintMode(true),
+      disablePrintMode: () => setIsPrintMode(false),
+    }));
+
     const { layoutedNodes, layoutedEdges } = useMemo(() => {
       const nodes: Node[] = devices.map((device) => ({
         id: device.id,
@@ -75,6 +87,7 @@ export const NetworkTopology = forwardRef<HTMLDivElement, NetworkTopologyProps>(
           ip: device.ip_address,
           type: device.type,
           status: device.status,
+          isPrintMode,
         },
       }));
 
@@ -84,22 +97,33 @@ export const NetworkTopology = forwardRef<HTMLDivElement, NetworkTopologyProps>(
           id: `${device.uplink_device_id}-${device.id}`,
           source: device.uplink_device_id!,
           target: device.id,
-          animated: device.status === 'Online',
+          animated: !isPrintMode && device.status === 'Online',
           style: { 
-            stroke: device.status === 'Online' ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-            strokeWidth: 2,
+            stroke: isPrintMode 
+              ? '#1f2937' 
+              : device.status === 'Online' 
+                ? 'hsl(var(--primary))' 
+                : 'hsl(var(--muted-foreground))',
+            strokeWidth: isPrintMode ? 2.5 : 2,
           },
         }));
 
       const result = getLayoutedElements(nodes, edges);
       return { layoutedNodes: result.nodes, layoutedEdges: result.edges };
-    }, [devices]);
+    }, [devices, isPrintMode]);
 
     const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
 
     return (
-      <div ref={ref} className="w-full h-[600px] glass-card overflow-hidden">
+      <div 
+        className={`w-full h-[600px] overflow-hidden rounded-xl border ${
+          isPrintMode 
+            ? 'bg-white border-gray-300' 
+            : 'glass-card'
+        }`}
+        data-print-mode={isPrintMode}
+      >
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -111,17 +135,25 @@ export const NetworkTopology = forwardRef<HTMLDivElement, NetworkTopologyProps>(
           fitViewOptions={{ padding: 0.2 }}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="hsl(var(--muted-foreground))" gap={20} size={1} />
-          <Controls className="!bg-card !border-border !rounded-lg [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground [&>button:hover]:!bg-muted" />
-          <MiniMap 
-            className="!bg-card !border-border !rounded-lg"
-            nodeColor={(node) => {
-              const status = node.data?.status;
-              if (status === 'Online') return 'hsl(var(--success))';
-              if (status === 'Offline') return 'hsl(var(--destructive))';
-              return 'hsl(var(--warning))';
-            }}
+          <Background 
+            color={isPrintMode ? '#d1d5db' : 'hsl(var(--muted-foreground))'} 
+            gap={20} 
+            size={1} 
           />
+          {!isPrintMode && (
+            <>
+              <Controls className="!bg-card !border-border !rounded-lg [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground [&>button:hover]:!bg-muted" />
+              <MiniMap 
+                className="!bg-card !border-border !rounded-lg"
+                nodeColor={(node) => {
+                  const status = node.data?.status;
+                  if (status === 'Online') return 'hsl(var(--success))';
+                  if (status === 'Offline') return 'hsl(var(--destructive))';
+                  return 'hsl(var(--warning))';
+                }}
+              />
+            </>
+          )}
         </ReactFlow>
       </div>
     );

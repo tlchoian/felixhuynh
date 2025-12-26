@@ -51,9 +51,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
-import { NetworkTopology } from "@/components/network/NetworkTopology";
+import { NetworkTopology, NetworkTopologyHandle } from "@/components/network/NetworkTopology";
 import { CsvImportModal } from "@/components/CsvImportModal";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 
 interface Location {
@@ -104,7 +104,8 @@ export default function NetworkIPAM() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
-  const topologyRef = useRef<HTMLDivElement>(null);
+  const topologyRef = useRef<NetworkTopologyHandle>(null);
+  const topologyContainerRef = useRef<HTMLDivElement>(null);
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -348,7 +349,7 @@ export default function NetworkIPAM() {
 
   // Export topology diagram as PDF
   const handleExportPdf = async () => {
-    if (!topologyRef.current) {
+    if (!topologyContainerRef.current || !topologyRef.current) {
       toast.error("Không tìm thấy sơ đồ mạng");
       return;
     }
@@ -357,14 +358,27 @@ export default function NetworkIPAM() {
     toast.info("Đang tạo PDF...");
 
     try {
-      // Capture the topology element
-      const canvas = await html2canvas(topologyRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#0a0f1c',
-        logging: false,
+      // Enable print mode for better rendering
+      topologyRef.current.enablePrintMode();
+      
+      // Wait for React to re-render with print mode styles
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Capture using html-to-image (better SVG support)
+      const dataUrl = await toPng(topologyContainerRef.current, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+        },
       });
+
+      // Create a temporary image to get dimensions
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(resolve => { img.onload = resolve; });
 
       // Create PDF in landscape orientation
       const pdf = new jsPDF({
@@ -376,79 +390,98 @@ export default function NetworkIPAM() {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       
-      // Header
+      // Header with professional styling
       const currentDate = new Date().toLocaleDateString('vi-VN', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
 
-      // Add header background
-      pdf.setFillColor(10, 15, 28);
-      pdf.rect(0, 0, pageWidth, 25, 'F');
+      // Add header background - professional blue
+      pdf.setFillColor(30, 58, 95);
+      pdf.rect(0, 0, pageWidth, 22, 'F');
+
+      // Add accent line
+      pdf.setFillColor(45, 212, 191);
+      pdf.rect(0, 22, pageWidth, 1.5, 'F');
 
       // Add logo placeholder (a simple network icon representation)
       pdf.setFillColor(45, 212, 191);
-      pdf.circle(15, 12.5, 5, 'F');
-      pdf.setFontSize(8);
-      pdf.setTextColor(10, 15, 28);
-      pdf.text('FX', 12.5, 14);
+      pdf.circle(12, 11, 4, 'F');
+      pdf.setFontSize(7);
+      pdf.setTextColor(30, 58, 95);
+      pdf.text('FX', 10, 12.5);
 
-      // Add title
-      pdf.setFontSize(16);
+      // Add title - using standard font for Unicode compatibility
+      pdf.setFontSize(14);
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Sơ Đồ Kết Nối Mạng', 25, 12);
+      // Use ASCII-safe title to avoid mojibake
+      pdf.text('Network Topology Diagram', 20, 10);
 
-      // Add date
-      pdf.setFontSize(10);
+      // Add Vietnamese subtitle as image-captured or simplified
+      pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(200, 200, 200);
-      pdf.text(currentDate, 25, 18);
+      pdf.setTextColor(200, 220, 230);
+      pdf.text('So Do Ket Noi Mang - ' + currentDate, 20, 16);
 
       // Add company name on right
-      pdf.setFontSize(12);
+      pdf.setFontSize(11);
       pdf.setTextColor(45, 212, 191);
-      pdf.text('FX Digital Center', pageWidth - 15, 14, { align: 'right' });
+      pdf.text('FX Digital Center', pageWidth - 10, 12, { align: 'right' });
 
-      // Calculate image dimensions to fit the page
-      const imgWidth = pageWidth - 20;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const maxImgHeight = pageHeight - 35;
+      // Calculate image dimensions to fit the page with margins
+      const marginX = 10;
+      const marginTop = 28;
+      const marginBottom = 15;
+      const availableWidth = pageWidth - (marginX * 2);
+      const availableHeight = pageHeight - marginTop - marginBottom;
       
-      let finalWidth = imgWidth;
-      let finalHeight = imgHeight;
+      const imgAspectRatio = img.width / img.height;
+      let finalWidth = availableWidth;
+      let finalHeight = finalWidth / imgAspectRatio;
       
-      if (imgHeight > maxImgHeight) {
-        finalHeight = maxImgHeight;
-        finalWidth = (canvas.width * finalHeight) / canvas.height;
+      if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = finalHeight * imgAspectRatio;
       }
 
-      // Center the image
+      // Center the image horizontally
       const xPos = (pageWidth - finalWidth) / 2;
-      const yPos = 28;
+      const yPos = marginTop;
+
+      // Add border around the diagram
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineWidth(0.3);
+      pdf.rect(xPos - 1, yPos - 1, finalWidth + 2, finalHeight + 2);
 
       // Add the topology image
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', xPos, yPos, finalWidth, finalHeight);
+      pdf.addImage(dataUrl, 'PNG', xPos, yPos, finalWidth, finalHeight);
 
-      // Add footer
+      // Add footer with device summary
+      pdf.setFillColor(245, 247, 250);
+      pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+      
       pdf.setFontSize(8);
-      pdf.setTextColor(150, 150, 150);
+      pdf.setTextColor(80, 80, 80);
+      const onlineDevices = filteredDevices.filter(d => d.status === 'Online').length;
+      const offlineDevices = filteredDevices.filter(d => d.status === 'Offline').length;
       pdf.text(
-        `Xuất lúc: ${new Date().toLocaleString('vi-VN')} | Tổng số thiết bị: ${filteredDevices.length}`,
+        `Exported: ${new Date().toLocaleString('vi-VN')} | Total Devices: ${filteredDevices.length} | Online: ${onlineDevices} | Offline: ${offlineDevices}`,
         pageWidth / 2,
-        pageHeight - 5,
+        pageHeight - 4,
         { align: 'center' }
       );
 
       // Save the PDF
-      pdf.save(`so-do-mang-${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`network-topology-${new Date().toISOString().split('T')[0]}.pdf`);
       toast.success("Đã xuất PDF thành công!");
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast.error("Lỗi khi xuất PDF");
     } finally {
+      // Disable print mode to restore normal view
+      topologyRef.current?.disablePrintMode();
       setIsExportingPdf(false);
     }
   };
@@ -765,7 +798,9 @@ export default function NetworkIPAM() {
               )}
             </Button>
           </div>
-          <NetworkTopology ref={topologyRef} devices={filteredDevices} />
+          <div ref={topologyContainerRef}>
+            <NetworkTopology ref={topologyRef} devices={filteredDevices} />
+          </div>
         </div>
       ) : (
         /* Devices Table */
