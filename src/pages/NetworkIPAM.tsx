@@ -17,6 +17,7 @@ import {
   Pencil,
   MapPin,
   FileDown,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ import { NetworkTopology, NetworkTopologyHandle } from "@/components/network/Net
 import { CsvImportModal } from "@/components/CsvImportModal";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
+import { useVlanSchemas, calculateNextAvailableIp, VlanSchema } from "@/hooks/useVlanSchemas";
 
 interface Location {
   id: string;
@@ -104,6 +106,7 @@ export default function NetworkIPAM() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const { vlanSchemas } = useVlanSchemas();
   const topologyRef = useRef<NetworkTopologyHandle>(null);
   const topologyContainerRef = useRef<HTMLDivElement>(null);
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
@@ -122,10 +125,11 @@ export default function NetworkIPAM() {
   const [editFormData, setEditFormData] = useState({
     device_name: "",
     ip_address: "",
+    gateway: "",
     type: "Workstation",
     mac_address: "",
     location_id: "",
-    vlan_id: "1",
+    vlan_id: "",
     status: "Online",
     uplink_device_id: "",
   });
@@ -133,13 +137,64 @@ export default function NetworkIPAM() {
   const [formData, setFormData] = useState({
     device_name: "",
     ip_address: "",
+    gateway: "",
     type: "Workstation",
     mac_address: "",
     location_id: "",
-    vlan_id: "1",
+    vlan_id: "",
     status: "Online",
     uplink_device_id: "",
   });
+
+  // Handle VLAN selection and auto-fill IP/gateway
+  const handleVlanChange = (vlanIdString: string, isEditForm: boolean = false) => {
+    const vlanId = parseInt(vlanIdString);
+    const selectedVlan = vlanSchemas.find((v) => v.vlan_id === vlanId);
+    
+    if (selectedVlan) {
+      const suggestedIp = calculateNextAvailableIp(selectedVlan, devices);
+      
+      if (isEditForm) {
+        setEditFormData((prev) => ({
+          ...prev,
+          vlan_id: vlanIdString,
+          ip_address: suggestedIp,
+          gateway: selectedVlan.gateway,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          vlan_id: vlanIdString,
+          ip_address: suggestedIp,
+          gateway: selectedVlan.gateway,
+        }));
+      }
+    } else {
+      if (isEditForm) {
+        setEditFormData((prev) => ({ ...prev, vlan_id: vlanIdString }));
+      } else {
+        setFormData((prev) => ({ ...prev, vlan_id: vlanIdString }));
+      }
+    }
+  };
+
+  // Manual IP suggestion trigger
+  const suggestNextIp = (isEditForm: boolean = false) => {
+    const currentVlanId = isEditForm ? editFormData.vlan_id : formData.vlan_id;
+    if (!currentVlanId) return;
+    
+    const vlanId = parseInt(currentVlanId);
+    const selectedVlan = vlanSchemas.find((v) => v.vlan_id === vlanId);
+    
+    if (selectedVlan) {
+      const suggestedIp = calculateNextAvailableIp(selectedVlan, devices);
+      if (isEditForm) {
+        setEditFormData((prev) => ({ ...prev, ip_address: suggestedIp }));
+      } else {
+        setFormData((prev) => ({ ...prev, ip_address: suggestedIp }));
+      }
+    }
+  };
 
   const fetchLocations = async () => {
     try {
@@ -203,7 +258,7 @@ export default function NetworkIPAM() {
       await logActivity("CREATE", "Device", `${t("logs_device_added")}: ${formData.device_name} (${formData.ip_address})`);
       toast.success(t("network_device_added"));
       setIsAddModalOpen(false);
-      setFormData({ device_name: "", ip_address: "", type: "Workstation", mac_address: "", location_id: "", vlan_id: "1", status: "Online", uplink_device_id: "" });
+      setFormData({ device_name: "", ip_address: "", gateway: "", type: "Workstation", mac_address: "", location_id: "", vlan_id: "", status: "Online", uplink_device_id: "" });
       fetchDevices();
     } catch (error) {
       console.error("Error adding device:", error);
@@ -263,13 +318,16 @@ export default function NetworkIPAM() {
 
   const handleEdit = (device: NetworkDevice) => {
     setEditingDevice(device);
+    // Find gateway from VLAN schema if available
+    const vlanSchema = vlanSchemas.find((v) => v.vlan_id === device.vlan_id);
     setEditFormData({
       device_name: device.device_name,
       ip_address: device.ip_address,
+      gateway: vlanSchema?.gateway || "",
       type: device.type,
       mac_address: device.mac_address || "",
       location_id: device.location_id || "",
-      vlan_id: device.vlan_id?.toString() || "1",
+      vlan_id: device.vlan_id?.toString() || "",
       status: device.status,
       uplink_device_id: device.uplink_device_id || "",
     });
@@ -532,16 +590,57 @@ export default function NetworkIPAM() {
                   className="input-field"
                 />
               </div>
+              {/* VLAN Selection */}
+              <div className="grid gap-2">
+                <Label>{t("network_vlan")} *</Label>
+                <Select value={formData.vlan_id} onValueChange={(value) => handleVlanChange(value, false)}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue placeholder="Chọn VLAN" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    {vlanSchemas.map((vlan) => (
+                      <SelectItem key={vlan.vlan_id} value={vlan.vlan_id.toString()}>
+                        VLAN {vlan.vlan_id} - {vlan.name} ({vlan.subnet})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>{t("network_ip_address")} *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="192.168.1.1"
+                      value={formData.ip_address}
+                      onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
+                      className="input-field flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => suggestNextIp(false)}
+                      disabled={!formData.vlan_id}
+                      title="Suggest IP"
+                      className="shrink-0"
+                    >
+                      <Wand2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Gateway</Label>
                   <Input
                     placeholder="192.168.1.1"
-                    value={formData.ip_address}
-                    onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
+                    value={formData.gateway}
+                    onChange={(e) => setFormData({ ...formData, gateway: e.target.value })}
                     className="input-field"
+                    readOnly
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>{t("network_type")}</Label>
                   <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
@@ -555,6 +654,19 @@ export default function NetworkIPAM() {
                       <SelectItem value="Server">{t("device_server")}</SelectItem>
                       <SelectItem value="Camera">{t("device_camera")}</SelectItem>
                       <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>{t("network_status")}</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                    <SelectTrigger className="input-field">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="Online">{t("status_online")}</SelectItem>
+                      <SelectItem value="Offline">{t("status_offline")}</SelectItem>
+                      <SelectItem value="Maintenance">{t("status_maintenance")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -585,31 +697,6 @@ export default function NetworkIPAM() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>{t("network_vlan")}</Label>
-                  <Input
-                    type="number"
-                    placeholder="1"
-                    value={formData.vlan_id}
-                    onChange={(e) => setFormData({ ...formData, vlan_id: e.target.value })}
-                    className="input-field"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>{t("network_status")}</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                    <SelectTrigger className="input-field">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border">
-                      <SelectItem value="Online">{t("status_online")}</SelectItem>
-                      <SelectItem value="Offline">{t("status_offline")}</SelectItem>
-                      <SelectItem value="Maintenance">{t("status_maintenance")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
               {/* Uplink Device Dropdown */}
               <div className="grid gap-2">
@@ -914,16 +1001,57 @@ export default function NetworkIPAM() {
                 className="input-field"
               />
             </div>
+            {/* VLAN Selection */}
+            <div className="grid gap-2">
+              <Label>{t("network_vlan")} *</Label>
+              <Select value={editFormData.vlan_id} onValueChange={(value) => handleVlanChange(value, true)}>
+                <SelectTrigger className="input-field">
+                  <SelectValue placeholder="Chọn VLAN" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {vlanSchemas.map((vlan) => (
+                    <SelectItem key={vlan.vlan_id} value={vlan.vlan_id.toString()}>
+                      VLAN {vlan.vlan_id} - {vlan.name} ({vlan.subnet})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("network_ip_address")} *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="192.168.1.1"
+                    value={editFormData.ip_address}
+                    onChange={(e) => setEditFormData({ ...editFormData, ip_address: e.target.value })}
+                    className="input-field flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => suggestNextIp(true)}
+                    disabled={!editFormData.vlan_id}
+                    title="Suggest IP"
+                    className="shrink-0"
+                  >
+                    <Wand2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label>Gateway</Label>
                 <Input
                   placeholder="192.168.1.1"
-                  value={editFormData.ip_address}
-                  onChange={(e) => setEditFormData({ ...editFormData, ip_address: e.target.value })}
+                  value={editFormData.gateway}
+                  onChange={(e) => setEditFormData({ ...editFormData, gateway: e.target.value })}
                   className="input-field"
+                  readOnly
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("network_type")}</Label>
                 <Select value={editFormData.type} onValueChange={(value) => setEditFormData({ ...editFormData, type: value })}>
@@ -937,6 +1065,19 @@ export default function NetworkIPAM() {
                     <SelectItem value="Server">{t("device_server")}</SelectItem>
                     <SelectItem value="Camera">{t("device_camera")}</SelectItem>
                     <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>{t("network_status")}</Label>
+                <Select value={editFormData.status} onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}>
+                  <SelectTrigger className="input-field">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Online">{t("status_online")}</SelectItem>
+                    <SelectItem value="Offline">{t("status_offline")}</SelectItem>
+                    <SelectItem value="Maintenance">{t("status_maintenance")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -967,31 +1108,6 @@ export default function NetworkIPAM() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>{t("network_vlan")}</Label>
-                <Input
-                  type="number"
-                  placeholder="1"
-                  value={editFormData.vlan_id}
-                  onChange={(e) => setEditFormData({ ...editFormData, vlan_id: e.target.value })}
-                  className="input-field"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>{t("network_status")}</Label>
-                <Select value={editFormData.status} onValueChange={(value) => setEditFormData({ ...editFormData, status: value })}>
-                  <SelectTrigger className="input-field">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    <SelectItem value="Online">{t("status_online")}</SelectItem>
-                    <SelectItem value="Offline">{t("status_offline")}</SelectItem>
-                    <SelectItem value="Maintenance">{t("status_maintenance")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             {/* Uplink Device Dropdown */}
             <div className="grid gap-2">
