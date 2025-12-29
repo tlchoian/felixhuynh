@@ -353,6 +353,39 @@ export type Database = {
         }
         Relationships: []
       }
+      vlan_schemas: {
+        Row: {
+          created_at: string
+          gateway: string
+          id: string
+          name: string
+          range_start: string
+          subnet: string
+          updated_at: string
+          vlan_id: number
+        }
+        Insert: {
+          created_at?: string
+          gateway: string
+          id?: string
+          name: string
+          range_start: string
+          subnet: string
+          updated_at?: string
+          vlan_id: number
+        }
+        Update: {
+          created_at?: string
+          gateway?: string
+          id?: string
+          name?: string
+          range_start?: string
+          subnet?: string
+          updated_at?: string
+          vlan_id?: number
+        }
+        Relationships: []
+      }
       wiki_docs: {
         Row: {
           category: string
