@@ -8,6 +8,7 @@ import {
   Server,
   Camera,
   Monitor,
+  Tv,
   Filter,
   Loader2,
   Trash2,
@@ -86,6 +87,7 @@ const deviceIcons: Record<string, any> = {
   Server: Server,
   Camera: Camera,
   Workstation: Monitor,
+  IPTV: Tv,
 };
 
 const deviceColors: Record<string, string> = {
@@ -95,6 +97,7 @@ const deviceColors: Record<string, string> = {
   Server: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   Camera: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   Workstation: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  IPTV: "bg-pink-500/20 text-pink-400 border-pink-500/30",
 };
 
 const statusStyles: Record<string, string> = {
@@ -700,6 +703,7 @@ export default function NetworkIPAM() {
                       <SelectItem value="Server">{t("device_server")}</SelectItem>
                       <SelectItem value="Camera">{t("device_camera")}</SelectItem>
                       <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+                      <SelectItem value="IPTV">{t("device_iptv")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -895,6 +899,7 @@ export default function NetworkIPAM() {
                 <SelectItem value="Server">{t("device_server")}</SelectItem>
                 <SelectItem value="Camera">{t("device_camera")}</SelectItem>
                 <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+                <SelectItem value="IPTV">{t("device_iptv")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1128,6 +1133,7 @@ export default function NetworkIPAM() {
                     <SelectItem value="Server">{t("device_server")}</SelectItem>
                     <SelectItem value="Camera">{t("device_camera")}</SelectItem>
                     <SelectItem value="Workstation">{t("device_workstation")}</SelectItem>
+                    <SelectItem value="IPTV">{t("device_iptv")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

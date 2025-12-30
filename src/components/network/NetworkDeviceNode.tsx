@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { Router, Network, Wifi, Server, Camera, Monitor } from 'lucide-react';
+import { Router, Network, Wifi, Server, Camera, Monitor, Tv } from 'lucide-react';
 
 interface NetworkDeviceNodeProps {
   data: {
@@ -19,6 +19,7 @@ const deviceIcons: Record<string, any> = {
   Server: Server,
   Camera: Camera,
   Workstation: Monitor,
+  IPTV: Tv,
 };
 
 const deviceColors: Record<string, string> = {
@@ -28,6 +29,7 @@ const deviceColors: Record<string, string> = {
   Server: 'bg-purple-500/20 border-purple-500/50 text-purple-400',
   Camera: 'bg-orange-500/20 border-orange-500/50 text-orange-400',
   Workstation: 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400',
+  IPTV: 'bg-pink-500/20 border-pink-500/50 text-pink-400',
 };
 
 // Print-friendly colors with solid backgrounds
@@ -38,6 +40,7 @@ const devicePrintColors: Record<string, string> = {
   Server: 'bg-purple-100 border-purple-600 text-purple-800',
   Camera: 'bg-orange-100 border-orange-600 text-orange-800',
   Workstation: 'bg-cyan-100 border-cyan-600 text-cyan-800',
+  IPTV: 'bg-pink-100 border-pink-600 text-pink-800',
 };
 
 const statusColors: Record<string, string> = {
