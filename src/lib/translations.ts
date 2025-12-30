@@ -220,6 +220,7 @@ export const translations = {
     device_server: "Server",
     device_camera: "Camera",
     device_workstation: "Workstation",
+    device_iptv: "IPTV",
     
     // Device Status
     status_online: "Online",
@@ -618,6 +619,7 @@ export const translations = {
     device_server: "Máy Chủ",
     device_camera: "Camera",
     device_workstation: "Máy Tính",
+    device_iptv: "IPTV",
     
     // Device Status
     status_online: "Hoạt Động",
