@@ -18,6 +18,7 @@ import {
   MapPin,
   FileDown,
   Wand2,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -231,7 +232,7 @@ export default function NetworkIPAM() {
     Promise.all([fetchLocations(), fetchDevices()]);
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (keepModalOpen: boolean = false) => {
     if (!formData.device_name || !formData.ip_address || !formData.location_id) {
       toast.error(t("validation_required"));
       return;
@@ -257,15 +258,60 @@ export default function NetworkIPAM() {
 
       await logActivity("CREATE", "Device", `${t("logs_device_added")}: ${formData.device_name} (${formData.ip_address})`);
       toast.success(t("network_device_added"));
-      setIsAddModalOpen(false);
-      setFormData({ device_name: "", ip_address: "", gateway: "", type: "Workstation", mac_address: "", location_id: "", vlan_id: "", status: "Online", uplink_device_id: "" });
-      fetchDevices();
+      
+      // Fetch updated devices list first to get accurate next IP
+      const { data: updatedDevices } = await supabase
+        .from("network_devices")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (updatedDevices) {
+        setDevices(updatedDevices);
+      }
+      
+      if (keepModalOpen) {
+        // Keep context (VLAN, Location, Type, Uplink) but clear Name/MAC and suggest next IP
+        const currentVlanId = formData.vlan_id;
+        const selectedVlan = vlanSchemas.find((v) => v.vlan_id === parseInt(currentVlanId));
+        const nextIp = selectedVlan 
+          ? calculateNextAvailableIp(selectedVlan, updatedDevices || devices)
+          : "";
+        
+        setFormData((prev) => ({
+          ...prev,
+          device_name: "",
+          mac_address: "",
+          ip_address: nextIp,
+        }));
+      } else {
+        setIsAddModalOpen(false);
+        setFormData({ device_name: "", ip_address: "", gateway: "", type: "Workstation", mac_address: "", location_id: "", vlan_id: "", status: "Online", uplink_device_id: "" });
+      }
     } catch (error) {
       console.error("Error adding device:", error);
       toast.error("Failed to add device");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Clone device - pre-fill form with source device data and auto-calculate next IP
+  const handleCloneDevice = (device: NetworkDevice) => {
+    const vlanSchema = vlanSchemas.find((v) => v.vlan_id === device.vlan_id);
+    const nextIp = vlanSchema ? calculateNextAvailableIp(vlanSchema, devices) : "";
+    
+    setFormData({
+      device_name: device.device_name, // Keep name for easy editing
+      ip_address: nextIp,
+      gateway: vlanSchema?.gateway || "",
+      type: device.type,
+      mac_address: "", // Clear MAC as it must be unique
+      location_id: device.location_id || "",
+      vlan_id: device.vlan_id?.toString() || "",
+      status: "Online",
+      uplink_device_id: device.uplink_device_id || "",
+    });
+    setIsAddModalOpen(true);
   };
 
   const handleDelete = async (id: string, deviceName: string) => {
@@ -719,9 +765,17 @@ export default function NetworkIPAM() {
                 </Select>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
               <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>{t("btn_cancel")}</Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-primary text-primary-foreground">
+              <Button 
+                variant="secondary" 
+                onClick={() => handleSubmit(true)} 
+                disabled={isSubmitting}
+              >
+                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Lưu & Thêm Tiếp
+              </Button>
+              <Button onClick={() => handleSubmit(false)} disabled={isSubmitting} className="bg-primary text-primary-foreground">
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {t("btn_save")}
               </Button>
@@ -957,6 +1011,15 @@ export default function NetworkIPAM() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleCloneDevice(device)}
+                            className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            title="Nhân bản thiết bị"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
