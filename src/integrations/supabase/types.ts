@@ -266,6 +266,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          module_permissions: Json | null
           status: string
           updated_at: string
         }
@@ -277,6 +278,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          module_permissions?: Json | null
           status?: string
           updated_at?: string
         }
@@ -288,6 +290,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          module_permissions?: Json | null
           status?: string
           updated_at?: string
         }

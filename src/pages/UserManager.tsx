@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
-import { ALL_MODULES, MODULE_LABELS, ModuleKey } from "@/hooks/useUserPermissions";
+import { ALL_MODULES, MODULE_LABELS, ModuleKey, ModulePermissions, AccessLevel } from "@/hooks/useUserPermissions";
 import { PermissionsModal } from "@/components/users/PermissionsModal";
 import {
   Table,
@@ -35,11 +35,43 @@ interface UserProfile {
   status: string;
   created_at: string;
   allowed_modules: string[] | null;
+  module_permissions: unknown;
 }
 
 interface UserWithRole extends UserProfile {
   role: string;
 }
+
+// Helper to convert user's stored permissions to ModulePermissions object
+const getModulePermissions = (user: UserWithRole): ModulePermissions => {
+  const defaultPerms: ModulePermissions = {
+    credentials: "none",
+    contracts: "none",
+    network: "none",
+    tasks: "write",
+    wiki: "write",
+  };
+
+  // Check new format first
+  if (user.module_permissions && typeof user.module_permissions === 'object') {
+    const stored = user.module_permissions as Record<string, string>;
+    ALL_MODULES.forEach((module) => {
+      if (stored[module]) {
+        defaultPerms[module] = stored[module] as AccessLevel;
+      }
+    });
+    return defaultPerms;
+  }
+
+  // Fallback to legacy format
+  if (user.allowed_modules && Array.isArray(user.allowed_modules)) {
+    ALL_MODULES.forEach((module) => {
+      defaultPerms[module] = user.allowed_modules!.includes(module) ? "write" : "none";
+    });
+  }
+
+  return defaultPerms;
+};
 
 export default function UserManager() {
   const { t, language } = useLanguage();
@@ -371,7 +403,7 @@ export default function UserManager() {
           onOpenChange={setPermissionsModalOpen}
           userId={selectedUser.id}
           userName={selectedUser.full_name || selectedUser.email || "User"}
-          currentModules={(selectedUser.allowed_modules as ModuleKey[]) || []}
+          currentPermissions={getModulePermissions(selectedUser)}
           isUserAdmin={selectedUser.role === "admin"}
           onUpdate={fetchUsers}
         />

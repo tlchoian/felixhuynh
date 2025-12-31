@@ -50,6 +50,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { CsvImportModal } from "@/components/CsvImportModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CredentialCard } from "@/components/credentials/CredentialCard";
@@ -108,6 +109,8 @@ export default function CredentialVault() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const { canWrite } = useUserPermissions();
+  const canEditCredentials = canWrite("credentials");
   const isMobile = useIsMobile();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);

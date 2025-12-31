@@ -60,6 +60,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { Badge } from "@/components/ui/badge";
 import { CsvImportModal } from "@/components/CsvImportModal";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -122,6 +123,8 @@ export default function ContractMonitor() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const { canWrite } = useUserPermissions();
+  const canEditContracts = canWrite("contracts");
   const isMobile = useIsMobile();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
