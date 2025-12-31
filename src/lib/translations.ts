@@ -222,6 +222,11 @@ export const translations = {
     device_workstation: "Workstation",
     device_iptv: "IPTV",
     
+    // Task Status
+    task_status_pending: "Pending",
+    task_status_in_progress: "In Progress",
+    task_status_resolved: "Resolved",
+    
     // Device Status
     status_online: "Online",
     status_offline: "Offline",
@@ -620,6 +625,11 @@ export const translations = {
     device_camera: "Camera",
     device_workstation: "Máy Tính",
     device_iptv: "IPTV",
+    
+    // Task Status
+    task_status_pending: "Chờ xử lý",
+    task_status_in_progress: "Đang xử lý",
+    task_status_resolved: "Hoàn thành",
     
     // Device Status
     status_online: "Hoạt Động",
