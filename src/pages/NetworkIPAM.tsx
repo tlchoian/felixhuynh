@@ -54,6 +54,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 import { NetworkTopology, NetworkTopologyHandle } from "@/components/network/NetworkTopology";
 import { CsvImportModal } from "@/components/CsvImportModal";
 import { toPng } from "html-to-image";
@@ -110,6 +111,8 @@ export default function NetworkIPAM() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { logActivity } = useActivityLog();
+  const { canWrite } = useUserPermissions();
+  const canEditNetwork = canWrite("network");
   const { vlanSchemas } = useVlanSchemas();
   const topologyRef = useRef<NetworkTopologyHandle>(null);
   const topologyContainerRef = useRef<HTMLDivElement>(null);
@@ -613,17 +616,20 @@ export default function NetworkIPAM() {
           <p className="text-muted-foreground mt-1">{t("network_subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-            <Upload className="w-4 h-4 mr-2" />
-            {t("csv_import_button")}
-          </Button>
-          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                {t("btn_add_device")}
-              </Button>
-            </DialogTrigger>
+          {canEditNetwork && (
+            <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              {t("csv_import_button")}
+            </Button>
+          )}
+          {canEditNetwork && (
+            <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t("btn_add_device")}
+                </Button>
+              </DialogTrigger>
           <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("network_add_title")}</DialogTitle>
@@ -785,7 +791,8 @@ export default function NetworkIPAM() {
               </Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -1016,31 +1023,35 @@ export default function NetworkIPAM() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleCloneDevice(device)}
-                            className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-                            title="Nhân bản thiết bị"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(device)}
-                            className="text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(device.id, device.device_name)}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {canEditNetwork && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleCloneDevice(device)}
+                                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                title="Nhân bản thiết bị"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(device)}
+                                className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(device.id, device.device_name)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
