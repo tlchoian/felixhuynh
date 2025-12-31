@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   ClipboardList,
@@ -47,8 +47,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO } from "date-fns";
-import { vi } from "date-fns/locale";
 import jsPDF from "jspdf";
+import { toPng } from "html-to-image";
+import TaskReportTemplate from "@/components/tasks/TaskReportTemplate";
 
 interface Task {
   id: string;
@@ -167,6 +168,8 @@ export default function TaskTracker() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filterEntity, setFilterEntity] = useState<string>("all");
@@ -354,7 +357,9 @@ export default function TaskTracker() {
     });
   };
 
-  const generatePDFReport = () => {
+  const [reportData, setReportData] = useState<{ tasks: Task[]; reportPeriod: string } | null>(null);
+
+  const generatePDFReport = async () => {
     const today = new Date();
     let startDate: Date;
     let endDate: Date;
@@ -380,135 +385,54 @@ export default function TaskTracker() {
       return taskDate >= startDate && taskDate <= endDate;
     });
 
-    // Group tasks by entity
-    const tasksByEntity: Record<string, Task[]> = {};
-    ENTITIES.forEach((entity) => {
-      tasksByEntity[entity] = filteredTasks.filter((t) => t.entity === entity);
-    });
-
-    // Create PDF
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    let yPos = 20;
-
-    // Header - Logo placeholder
-    doc.setFillColor(59, 130, 246);
-    doc.rect(margin, yPos, 30, 15, "F");
-    doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255);
-    doc.text("LOGO", margin + 15, yPos + 9, { align: "center" });
-
-    // Title
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.text("BÁO CÁO CÔNG VIỆC KỸ THUẬT", pageWidth / 2, yPos + 8, { align: "center" });
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100, 100, 100);
-    doc.text(reportPeriod, pageWidth / 2, yPos + 16, { align: "center" });
-
-    yPos += 30;
-
-    // Summary stats
-    const totalTasks = filteredTasks.length;
-    const resolvedTasks = filteredTasks.filter((t) => t.status === "resolved").length;
-    const pendingTasks = filteredTasks.filter((t) => t.status === "pending").length;
-    const inProgressTasks = filteredTasks.filter((t) => t.status === "in_progress").length;
-
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Tổng số công việc: ${totalTasks}  |  Hoàn thành: ${resolvedTasks}  |  Đang xử lý: ${inProgressTasks}  |  Chờ xử lý: ${pendingTasks}`, margin, yPos);
-    
-    yPos += 10;
-    doc.setDrawColor(200, 200, 200);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-
-    // Tasks by entity
-    ENTITIES.forEach((entity) => {
-      const entityTasks = tasksByEntity[entity];
-      if (entityTasks.length === 0) return;
-
-      // Check if we need a new page
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      // Entity header
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, yPos - 4, pageWidth - margin * 2, 8, "F");
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${entity} (${entityTasks.length})`, margin + 2, yPos + 1);
-      yPos += 10;
-
-      // Table header
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Ngày", margin, yPos);
-      doc.text("Vấn đề", margin + 25, yPos);
-      doc.text("Trạng thái", margin + 100, yPos);
-      doc.text("Ghi chú xử lý", margin + 130, yPos);
-      yPos += 5;
-      doc.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 5;
-
-      // Table rows
-      doc.setTextColor(0, 0, 0);
-      entityTasks.forEach((task) => {
-        if (yPos > 270) {
-          doc.addPage();
-          yPos = 20;
-        }
-
-        const taskDate = format(parseISO(task.created_at), "dd/MM");
-        const statusText = task.status === "resolved" ? "Hoàn thành" : 
-                          task.status === "in_progress" ? "Đang xử lý" : "Chờ xử lý";
-        const resolution = task.resolution_notes || "-";
-
-        doc.setFontSize(8);
-        doc.text(taskDate, margin, yPos);
-        
-        // Truncate title if too long
-        const maxTitleWidth = 70;
-        const titleLines = doc.splitTextToSize(task.title, maxTitleWidth);
-        doc.text(titleLines[0], margin + 25, yPos);
-        
-        doc.text(statusText, margin + 100, yPos);
-        
-        // Truncate resolution if too long
-        const maxResWidth = 50;
-        const resLines = doc.splitTextToSize(resolution, maxResWidth);
-        doc.text(resLines[0], margin + 130, yPos);
-
-        yPos += 6;
-      });
-
-      yPos += 5;
-    });
-
-    // Footer - Signature
-    if (yPos > 240) {
-      doc.addPage();
-      yPos = 20;
+    if (filteredTasks.length === 0) {
+      toast.error("Không có công việc nào trong khoảng thời gian này");
+      return;
     }
 
-    yPos = 260;
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Ngày xuất báo cáo: ${format(today, "dd/MM/yyyy")}`, margin, yPos);
-    
-    doc.text("IT Manager", pageWidth - margin - 40, yPos);
-    doc.line(pageWidth - margin - 60, yPos + 15, pageWidth - margin, yPos + 15);
-    doc.setFontSize(8);
-    doc.text("(Ký tên)", pageWidth - margin - 30, yPos + 20, { align: "center" });
+    // Set report data to render the template
+    setReportData({ tasks: filteredTasks, reportPeriod });
+    setIsGeneratingPdf(true);
 
-    // Save PDF
-    doc.save(`Bao-cao-ky-thuat-${format(today, "yyyy-MM-dd")}.pdf`);
-    toast.success("Đã xuất báo cáo PDF thành công!");
-    setIsExportModalOpen(false);
+    // Wait for the template to render
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    try {
+      if (!reportRef.current) {
+        throw new Error("Report template not ready");
+      }
+
+      // Convert HTML to image
+      const dataUrl = await toPng(reportRef.current, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+
+      // Create PDF from image
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Add the image to the PDF
+      doc.addImage(dataUrl, "PNG", 0, 0, pageWidth, pageHeight);
+
+      // Save PDF
+      doc.save(`Bao-cao-ky-thuat-${format(today, "yyyy-MM-dd")}.pdf`);
+      toast.success("Đã xuất báo cáo PDF thành công!");
+      setIsExportModalOpen(false);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Lỗi khi xuất PDF");
+    } finally {
+      setIsGeneratingPdf(false);
+      setReportData(null);
+    }
   };
 
   if (loading) {
@@ -879,13 +803,33 @@ export default function TaskTracker() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsExportModalOpen(false)}>Hủy</Button>
-            <Button onClick={generatePDFReport} className="bg-primary text-primary-foreground">
-              <FileText className="w-4 h-4 mr-2" />
-              Xuất PDF
+            <Button 
+              onClick={generatePDFReport} 
+              className="bg-primary text-primary-foreground"
+              disabled={isGeneratingPdf}
+            >
+              {isGeneratingPdf ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
+              {isGeneratingPdf ? "Đang xuất..." : "Xuất PDF"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden report template for PDF generation */}
+      {reportData && (
+        <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+          <TaskReportTemplate
+            ref={reportRef}
+            tasks={reportData.tasks}
+            reportPeriod={reportData.reportPeriod}
+            entities={ENTITIES}
+          />
+        </div>
+      )}
     </div>
   );
 }
