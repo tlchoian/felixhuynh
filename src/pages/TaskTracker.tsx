@@ -827,6 +827,7 @@ export default function TaskTracker() {
             tasks={reportData.tasks}
             reportPeriod={reportData.reportPeriod}
             entities={ENTITIES}
+            reporterName={user?.user_metadata?.full_name || user?.email || "IT Manager"}
           />
         </div>
       )}

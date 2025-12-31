@@ -19,10 +19,11 @@ interface TaskReportTemplateProps {
   tasks: Task[];
   reportPeriod: string;
   entities: string[];
+  reporterName?: string;
 }
 
 const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
-  ({ tasks, reportPeriod, entities }, ref) => {
+  ({ tasks, reportPeriod, entities, reporterName }, ref) => {
     const today = new Date();
     
     // Group tasks by entity
@@ -47,9 +48,9 @@ const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
 
     const getStatusStyle = (status: string) => {
       switch (status) {
-        case "resolved": return { backgroundColor: "#dcfce7", color: "#166534" };
-        case "in_progress": return { backgroundColor: "#dbeafe", color: "#1e40af" };
-        default: return { backgroundColor: "#fef3c7", color: "#92400e" };
+        case "resolved": return { backgroundColor: "#bbf7d0", color: "#15803d", fontWeight: 600 };
+        case "in_progress": return { backgroundColor: "#bfdbfe", color: "#1d4ed8", fontWeight: 600 };
+        default: return { backgroundColor: "#fed7aa", color: "#c2410c", fontWeight: 600 };
       }
     };
 
@@ -198,7 +199,8 @@ const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
                       textAlign: "left", 
                       fontWeight: 600,
                       borderBottom: "2px solid #e2e8f0",
-                      width: "12%",
+                      width: "8%",
+                      whiteSpace: "nowrap",
                     }}>
                       Ngày
                     </th>
@@ -207,7 +209,7 @@ const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
                       textAlign: "left", 
                       fontWeight: 600,
                       borderBottom: "2px solid #e2e8f0",
-                      width: "35%",
+                      width: "50%",
                     }}>
                       Vấn đề
                     </th>
@@ -216,7 +218,8 @@ const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
                       textAlign: "center", 
                       fontWeight: 600,
                       borderBottom: "2px solid #e2e8f0",
-                      width: "15%",
+                      width: "10%",
+                      whiteSpace: "nowrap",
                     }}>
                       Trạng thái
                     </th>
@@ -225,7 +228,7 @@ const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
                       textAlign: "left", 
                       fontWeight: 600,
                       borderBottom: "2px solid #e2e8f0",
-                      width: "38%",
+                      width: "32%",
                     }}>
                       Ghi chú xử lý
                     </th>
@@ -305,12 +308,19 @@ const TaskReportTemplate = forwardRef<HTMLDivElement, TaskReportTemplateProps>(
           {/* Right: Signature */}
           <div style={{ textAlign: "center" }}>
             <div style={{ 
+              fontSize: "10pt", 
+              color: "#6b7280",
+              marginBottom: "6px",
+            }}>
+              Người báo cáo
+            </div>
+            <div style={{ 
               fontSize: "11pt", 
               fontWeight: 600, 
               color: "#374151",
               marginBottom: "40px",
             }}>
-              IT Manager
+              {reporterName || "IT Manager"}
             </div>
             <div style={{ 
               width: "150px", 
